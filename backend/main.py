@@ -30,7 +30,10 @@ app = FastAPI(
 )
 
 # CORS middleware
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000").split(",")
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:8000,http://127.0.0.1:8000,https://adaptivelearn-ppe.onrender.com"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -67,7 +70,7 @@ async def get_version():
     """Get API version"""
     return {"version": "1.0.0"}
 
-# Serve frontend static files (optional)
+# Serve frontend static files
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
 if os.path.exists(frontend_dir):
     try:
@@ -77,4 +80,4 @@ if os.path.exists(frontend_dir):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
