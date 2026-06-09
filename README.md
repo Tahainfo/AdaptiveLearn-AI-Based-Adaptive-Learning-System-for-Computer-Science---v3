@@ -149,7 +149,7 @@ AdaptiveLearn follows a classic **three-tier architecture**:
 
 <div align="center">
 
-<img src="docs/architecture.jpg" alt="AdaptiveLearn three-tier architecture diagram" width="80%"/>
+<img src="docs/screenshots/architechture.png" alt="AdaptiveLearn three-tier architecture diagram" width="80%"/>
 
 </div>
 
