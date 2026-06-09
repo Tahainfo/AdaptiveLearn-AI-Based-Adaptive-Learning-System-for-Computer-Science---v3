@@ -1,7 +1,7 @@
 <div align="center">
 
-<!-- Optional: replace with your own banner -> docs/banner.png -->
-<img src="docs/banner.png" alt="AdaptiveLearn" width="100%"/>
+<!-- Optional: replace with your own banner -> docs/banner.jpg -->
+<img src="docs/screenshots/banner.jpg" alt="AdaptiveLearn" width="25%"/>
 
 # AdaptiveLearn
 
@@ -86,31 +86,34 @@ The platform is grounded in two pedagogical principles:
 
 **Authentication**
 
-<img src="docs/screenshots/login.png" alt="Login and registration interface" width="80%"/>
+<img src="docs/screenshots/authentification etudiant.jpg" alt="Login and registration interface" width="80%"/>
 
 <br/><br/>
 
 **Student Dashboard** — progress by module and sequence, badges, and AI recommendations
 
-<img src="docs/screenshots/student-dashboard.png" alt="Student dashboard" width="80%"/>
+<img src="docs/screenshots/tableau de bord etudiant.jpg" alt="Student dashboard" width="80%"/>
 
 <br/><br/>
 
 **Diagnostic Test** — multi-type questions with a progress bar and instant feedback
 
-<img src="docs/screenshots/diagnostic-test.png" alt="Diagnostic test interface" width="80%"/>
+<img src="docs/screenshots/qcm.jpg" alt="Diagnostic test interface" width="80%"/>
 
 <br/><br/>
 
 **AI Pedagogical Report** — personalized post-test analysis with corrective exercises
 
-<img src="docs/screenshots/ai-report.png" alt="AI generated pedagogical report" width="80%"/>
+<img src="docs/screenshots/bilan1.jpg" alt="AI generated pedagogical report" width="80%"/>
+<img src="docs/screenshots/bilan2.jpg" alt="AI generated pedagogical report" width="80%"/>
+<img src="docs/screenshots/bilan3.jpg" alt="AI generated pedagogical report" width="80%"/>
 
 <br/><br/>
 
 **Admin Analytics Dashboard** — per-class, per-sequence, and per-attempt statistics
 
-<img src="docs/screenshots/admin-dashboard.png" alt="Admin analytics dashboard" width="80%"/>
+<img src="docs/screenshots/analytics_parclasse.jpg" alt="Admin analytics dashboard" width="80%"/>
+<img src="docs/screenshots/analytics_paretudiant.jpg" alt="Admin analytics dashboard" width="80%"/>
 
 </div>
 
@@ -146,7 +149,7 @@ AdaptiveLearn follows a classic **three-tier architecture**:
 
 <div align="center">
 
-<img src="docs/architecture.png" alt="AdaptiveLearn three-tier architecture diagram" width="80%"/>
+<img src="docs/screenshots/architechture.png" alt="AdaptiveLearn three-tier architecture diagram" width="80%"/>
 
 </div>
 
