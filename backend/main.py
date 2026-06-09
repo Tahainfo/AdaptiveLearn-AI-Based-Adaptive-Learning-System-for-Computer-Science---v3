@@ -6,6 +6,7 @@ Adaptive Learning System for Moroccan High School Students
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 from dotenv import load_dotenv
 
@@ -51,7 +52,7 @@ async def startup():
     insert_default_concepts()
     print("✅ Database initialized")
 
-# Include routers
+# ── API routes (must be declared BEFORE static file catch-all) ──
 app.include_router(auth_router)
 app.include_router(curriculum_router)
 app.include_router(diagnostic_router)
@@ -60,23 +61,43 @@ app.include_router(analytics_router)
 app.include_router(admin_router)
 app.include_router(ai_router)
 
+# ── Health / version endpoints ───────────────────────────────────
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
     return {"status": "healthy"}
 
 @app.get("/api/version")
 async def get_version():
-    """Get API version"""
     return {"version": "1.0.0"}
 
-# Serve frontend static files
+# ── Frontend static files ────────────────────────────────────────
+# Mount static assets (JS, CSS, images) under /assets
+# The catch-all route below serves index.html for everything else
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+frontend_dir = os.path.abspath(frontend_dir)
+
 if os.path.exists(frontend_dir):
-    try:
-        app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
-    except Exception as e:
-        print(f"Note: Frontend directory not found for static mounting: {e}")
+    # Serve static assets without intercepting API routes
+    app.mount("/js",  StaticFiles(directory=os.path.join(frontend_dir, "js")),  name="js")
+    app.mount("/css", StaticFiles(directory=os.path.join(frontend_dir, "css")), name="css")
+    # Add more sub-folders if needed (images, etc.)
+    for sub in ["images", "img", "assets", "static"]:
+        sub_path = os.path.join(frontend_dir, sub)
+        if os.path.exists(sub_path):
+            app.mount(f"/{sub}", StaticFiles(directory=sub_path), name=sub)
+
+@app.get("/")
+async def serve_index():
+    index = os.path.join(frontend_dir, "index.html")
+    return FileResponse(index)
+
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    """Serve frontend files; fall back to index.html for SPA routing."""
+    file_path = os.path.join(frontend_dir, full_path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    return FileResponse(os.path.join(frontend_dir, "index.html"))
 
 if __name__ == "__main__":
     import uvicorn
