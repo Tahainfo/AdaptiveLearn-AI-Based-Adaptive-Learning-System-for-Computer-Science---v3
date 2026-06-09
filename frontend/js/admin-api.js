@@ -48,19 +48,16 @@ const adminAPI = {
     // STUDENT MANAGEMENT
     // =================================================================
 
-    async createStudent(username, email, password, role = 'student') {
+    async createStudent(username, email, password, role = 'student', classe = null) {
+        const body = { username, email, password, role };
+        if (classe) body.classe = classe;
         const response = await fetch(`${this.baseURL}/students`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${this.token}`
             },
-            body: JSON.stringify({
-                username,
-                email,
-                password,
-                role
-            })
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) throw new Error(await response.text());
@@ -289,6 +286,63 @@ const adminAPI = {
             headers: { 'Authorization': `Bearer ${this.token}` }
         });
 
+        if (!response.ok) throw new Error(await response.text());
+        return await response.json();
+    },
+
+    async getConceptsWithDiagnostics() {
+        const response = await fetch(`${this.baseURL}/analytics/concepts-with-diagnostics`, {
+            headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        return await response.json();
+    },
+
+    async getClasses() {
+        const response = await fetch(`${this.baseURL}/classes`, {
+            headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        return await response.json();
+    },
+
+    async getSequencesWithDiagnostics() {
+        const response = await fetch(`${this.baseURL}/analytics/sequences-with-diagnostics`, {
+            headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+        return await response.json();
+    },
+
+    async getDiagnosticSequenceStats(sequenceId, classe = null) {
+        let url = `${this.baseURL}/analytics/diagnostic-sequence?sequence_id=${sequenceId}`;
+        if (classe) url += `&classe=${encodeURIComponent(classe)}`;
+        const response = await fetch(url, { headers: { 'Authorization': `Bearer ${this.token}` } });
+        if (!response.ok) throw new Error(await response.text());
+        return await response.json();
+    },
+
+    async getStudentsOverview(classe = null) {
+        let url = `${this.baseURL}/analytics/students-overview`;
+        if (classe) url += `?classe=${encodeURIComponent(classe)}`;
+        const response = await fetch(url, { headers: { 'Authorization': `Bearer ${this.token}` } });
+        if (!response.ok) throw new Error(await response.text());
+        return await response.json();
+    },
+
+    async getDiagnosticGroupStats(conceptId) {
+        const response = await fetch(
+            `${this.baseURL}/analytics/diagnostic-group?concept_id=${conceptId}`,
+            { headers: { 'Authorization': `Bearer ${this.token}` } }
+        );
+        if (!response.ok) throw new Error(await response.text());
+        return await response.json();
+    },
+
+    async getStudentAnalytics(studentId) {
+        const response = await fetch(`${this.baseURL}/analytics/student/${studentId}`, {
+            headers: { 'Authorization': `Bearer ${this.token}` }
+        });
         if (!response.ok) throw new Error(await response.text());
         return await response.json();
     }

@@ -53,25 +53,27 @@ class ExplainResponse(BaseModel):
 
 
 def _build_prompt(req: ExplainRequest) -> str:
-    verdict = "answered correctly" if req.is_correct else "answered incorrectly"
+    verdict = "a répondu correctement" if req.is_correct else "a répondu incorrectement"
     wrong_part = (
         ""
         if req.is_correct
         else (
-            f'\nThe student chose: "{req.student_answer}"\n'
-            "Briefly explain what misconception or gap likely led to that mistake."
+            f'\nRéponse de l\'élève : "{req.student_answer}"\n'
+            "Explique brièvement quelle incompréhension ou lacune a probablement conduit à cette erreur."
         )
     )
 
     return (
-        "You are a friendly computer-science tutor helping a student review a diagnostic quiz.\n\n"
-        f"Concept: {req.concept_name}\n"
-        f"Question: {req.question_text}\n"
-        f"Correct answer: {req.correct_answer}\n"
-        f"The student {verdict}.{wrong_part}\n\n"
-        "Write a clear, concise explanation (2–4 sentences) of WHY the correct answer is right. "
-        "Use plain language suitable for a high-school or early-university student. "
-        "Do not repeat the question. Do not use markdown headers."
+        "Tu es un professeur bienveillant en informatique qui aide un élève à réviser un test de diagnostic.\n\n"
+        f"Concept : {req.concept_name}\n"
+        f"Question : {req.question_text}\n"
+        f"Bonne réponse : {req.correct_answer}\n"
+        f"L'élève {verdict}.{wrong_part}\n\n"
+        "Rédige une explication claire et concise (2 à 4 phrases) expliquant POURQUOI la bonne réponse est correcte. "
+        "Utilise un langage simple adapté à un lycéen ou un étudiant de première année. "
+        "Tutoie l'élève. "
+        "Ne répète pas la question. N'utilise pas de titres markdown. "
+        "RÉPONDS OBLIGATOIREMENT EN FRANÇAIS."
     )
 
 
@@ -447,14 +449,15 @@ Réponds UNIQUEMENT avec cet objet JSON (pas de markdown, pas de texte suppléme
       "question": "<question pédagogique directe>",
       "options": ["<choix A>", "<choix B>", "<choix C>", "<choix D>"],
       "correct_index": <0|1|2|3>,
-      "explanation": "<1-2 phrases expliquant pourquoi c'est correct, en tutoyant l'élève>"
+      "explanation": "<1-2 phrases NEUTRES expliquant pourquoi la bonne réponse est correcte — commence directement par le fait pédagogique, sans dire 'tu as raison', 'bravo', 'c'est juste' ni aucune phrase qui suppose que l'élève a bien répondu>"
     }}
   ]
 }}
 
 Règles STRICTES :
 - Toutes les valeurs textuelles EN FRANÇAIS
-- Toujours tutoyer l'élève dans les explications ("tu")
+- L'explication doit être FACTUELLE et NEUTRE : elle explique le concept, pas la performance de l'élève
+- Ne jamais commencer l'explication par "Tu as raison", "Bravo", "C'est exact", "Effectivement" ou toute formule qui suppose une bonne réponse
 - correct_index = indice 0-3 de la bonne réponse dans options
 - Les 4 options doivent être plausibles et représentatives d'erreurs classiques
 - Chaque exercice cible UNE lacune identifiée ci-dessus

@@ -5,6 +5,8 @@ Requires admin role for access
 from fastapi import APIRouter, HTTPException, Header, Depends
 from typing import Optional, List
 import json
+import math
+import statistics as stats_lib
 from datetime import datetime
 
 from backend.models.admin_models import (
@@ -49,9 +51,9 @@ async def create_student(
     
     try:
         cursor.execute("""
-            INSERT INTO students (username, email, password_hash, role, is_active)
-            VALUES (?, ?, ?, ?, 1)
-        """, (student_data.username, student_data.email, password_hash, student_data.role.value))
+            INSERT INTO students (username, email, password_hash, role, is_active, classe)
+            VALUES (?, ?, ?, ?, 1, ?)
+        """, (student_data.username, student_data.email, password_hash, student_data.role.value, student_data.classe))
         
         conn.commit()
         new_student_id = cursor.lastrowid
@@ -101,10 +103,10 @@ async def get_student_details(
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT id, username, email, role, is_active, created_at
+        SELECT id, username, email, role, is_active, created_at, classe
         FROM students WHERE id = ?
     """, (student_id,))
-    
+
     student = cursor.fetchone()
     if not student:
         conn.close()
@@ -138,6 +140,7 @@ async def get_student_details(
         role=student[3],
         is_active=bool(student[4]),
         created_at=student[5],
+        classe=student[6],
         total_exercises_completed=exercises_completed,
         average_mastery=mastery_stats.get("average_mastery", 0.0)
     )
@@ -153,19 +156,19 @@ async def list_students(
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT id, username, email, role, is_active, created_at
+        SELECT id, username, email, role, is_active, created_at, classe
         FROM students
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?
     """, (limit, skip))
-    
+
     students = cursor.fetchall()
-    
+
     cursor.execute("SELECT COUNT(*) FROM students")
     total = cursor.fetchone()[0]
-    
+
     conn.close()
-    
+
     return {
         "total": total,
         "skip": skip,
@@ -177,7 +180,8 @@ async def list_students(
                 "email": s[2],
                 "role": s[3],
                 "is_active": bool(s[4]),
-                "created_at": s[5]
+                "created_at": s[5],
+                "classe": s[6]
             }
             for s in students
         ]
@@ -212,7 +216,10 @@ async def update_student(
     if update_data.role is not None:
         updates.append("role = ?")
         params.append(update_data.role.value)
-    
+    if update_data.classe is not None:
+        updates.append("classe = ?")
+        params.append(update_data.classe)
+
     if not updates:
         conn.close()
         return {"message": "No updates provided"}
@@ -290,24 +297,18 @@ async def delete_student(
     student_id: int,
     admin_id: int = Depends(require_admin)
 ):
-    """Delete a student (soft delete - mark inactive)"""
+    """Permanently delete a student and all their associated data."""
     if not verify_user_exists(student_id):
         raise HTTPException(status_code=404, detail="Student not found")
-    
-    # Prevent self-deletion
+
     if student_id == admin_id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
-    
+
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     try:
-        cursor.execute(
-            "UPDATE students SET is_active = 0 WHERE id = ?",
-            (student_id,)
-        )
-        conn.commit()
-        
+        # Log the action BEFORE deletion so the record still exists for FK integrity
         log_admin_action(
             admin_id=admin_id,
             action_type="delete_student",
@@ -315,9 +316,33 @@ async def delete_student(
             entity_id=student_id,
             target_user_id=student_id
         )
-        
-        return {"message": "Student deleted successfully"}
-    
+
+        # 1. Delete diagnostic question results (child of diagnostic_attempts)
+        cursor.execute("""
+            DELETE FROM diagnostic_question_results
+            WHERE attempt_id IN (
+                SELECT id FROM diagnostic_attempts WHERE student_id = ?
+            )
+        """, (student_id,))
+
+        # 2. Delete activity data directly linked to the student
+        cursor.execute("DELETE FROM diagnostic_attempts WHERE student_id = ?", (student_id,))
+        cursor.execute("DELETE FROM exercise_attempts   WHERE student_id = ?", (student_id,))
+        cursor.execute("DELETE FROM mistakes_log        WHERE student_id = ?", (student_id,))
+        cursor.execute("DELETE FROM mastery_state       WHERE student_id = ?", (student_id,))
+
+        # 3. Nullify FK references in tables that must be preserved
+        cursor.execute("UPDATE exercises          SET created_by_admin_id = NULL WHERE created_by_admin_id = ?", (student_id,))
+        cursor.execute("UPDATE exercise_templates SET created_by_admin_id = NULL WHERE created_by_admin_id = ?", (student_id,))
+        cursor.execute("UPDATE admin_settings     SET updated_by_admin_id = NULL WHERE updated_by_admin_id = ?", (student_id,))
+        cursor.execute("UPDATE admin_logs         SET target_user_id      = NULL WHERE target_user_id      = ?", (student_id,))
+
+        # 4. Delete the student record itself
+        cursor.execute("DELETE FROM students WHERE id = ?", (student_id,))
+
+        conn.commit()
+        return {"message": "Student permanently deleted"}
+
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -913,14 +938,16 @@ async def get_admin_dashboard(
     
     # Mastery distribution
     cursor.execute("""
-        SELECT 
-            SUM(CASE WHEN AVG(mastery_level) >= 0.7 THEN 1 ELSE 0 END) as excellent,
-            SUM(CASE WHEN AVG(mastery_level) >= 0.4 AND AVG(mastery_level) < 0.7 THEN 1 ELSE 0 END) as good,
-            SUM(CASE WHEN AVG(mastery_level) < 0.4 THEN 1 ELSE 0 END) as weak
+        SELECT
+            SUM(CASE WHEN avg_mastery >= 0.7 THEN 1 ELSE 0 END) as excellent,
+            SUM(CASE WHEN avg_mastery >= 0.4 AND avg_mastery < 0.7 THEN 1 ELSE 0 END) as good,
+            SUM(CASE WHEN avg_mastery < 0.4 THEN 1 ELSE 0 END) as weak
         FROM (
-            SELECT student_id, AVG(mastery_level) as avg_mastery
-            FROM mastery_state
-            GROUP BY student_id
+            SELECT ms.student_id, AVG(ms.mastery_level) as avg_mastery
+            FROM mastery_state ms
+            JOIN students s ON ms.student_id = s.id
+            WHERE s.role = 'student'
+            GROUP BY ms.student_id
         )
     """)
     
@@ -959,3 +986,633 @@ async def get_admin_dashboard(
         most_practiced_concepts=most_practiced,
         timestamp=datetime.now().isoformat()
     )
+
+
+# =============================================================================
+# ADVANCED ANALYTICS ENDPOINTS
+# =============================================================================
+
+@router.get("/analytics/concepts-with-diagnostics")
+async def get_concepts_with_diagnostics(admin_id: int = Depends(require_admin)):
+    """Return concepts that have at least one admin diagnostic exercise."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT DISTINCT c.id, c.name, s.title AS seq_title, m.title AS mod_title
+        FROM concepts c
+        JOIN exercises e ON e.concept_id = c.id
+        LEFT JOIN sequences s ON c.sequence_id = s.id
+        LEFT JOIN modules m ON s.module_id = m.id
+        WHERE e.is_diagnostic = 1 AND e.created_by_admin_id IS NOT NULL AND e.is_active = 1
+        ORDER BY m.order_index, s.order_index, c.name
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"id": r[0], "name": r[1], "sequence": r[2] or "", "module": r[3] or ""} for r in rows]
+
+
+@router.get("/classes")
+async def get_classes(admin_id: int = Depends(require_admin)):
+    """Return the distinct non-null classe values present in student accounts."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT DISTINCT classe FROM students
+        WHERE role = 'student' AND classe IS NOT NULL AND classe != ''
+        ORDER BY classe
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [r[0] for r in rows]
+
+
+@router.get("/analytics/sequences-with-diagnostics")
+async def get_sequences_with_diagnostics(admin_id: int = Depends(require_admin)):
+    """Return sequences (tests) that have at least one concept with diagnostic exercises."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT DISTINCT s.id, s.title, m.title AS mod_title
+        FROM sequences s
+        JOIN concepts c ON c.sequence_id = s.id
+        JOIN exercises e ON e.concept_id = c.id
+        LEFT JOIN modules m ON s.module_id = m.id
+        WHERE e.is_diagnostic = 1 AND e.created_by_admin_id IS NOT NULL AND e.is_active = 1
+        ORDER BY m.order_index, s.order_index, s.title
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"id": r[0], "name": r[1], "module": r[2] or ""} for r in rows]
+
+
+@router.get("/analytics/diagnostic-sequence")
+async def get_diagnostic_sequence_stats(
+    sequence_id: int,
+    classe: Optional[str] = None,
+    admin_id: int = Depends(require_admin)
+):
+    """Per-concept statistics for all concepts in a sequence's diagnostic tests."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT title FROM sequences WHERE id = ?", (sequence_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Sequence not found")
+    sequence_name = row[0]
+
+    cursor.execute("""
+        SELECT DISTINCT c.id, c.name
+        FROM concepts c
+        JOIN exercises e ON e.concept_id = c.id
+        WHERE c.sequence_id = ? AND e.is_diagnostic = 1
+              AND e.created_by_admin_id IS NOT NULL AND e.is_active = 1
+        ORDER BY c.id
+    """, (sequence_id,))
+    concepts = cursor.fetchall()
+
+    results = []
+    global_student_ids: set = set()
+    # {student_id: {attempt_num: [concept_scores]}} — aggregate per student/attempt across concepts
+    global_per_student_per_attempt: dict = {}
+
+    for concept_id, concept_name in concepts:
+        if classe:
+            cursor.execute("""
+                SELECT da.id, da.student_id, da.score, da.created_at
+                FROM diagnostic_attempts da
+                JOIN students s ON da.student_id = s.id
+                WHERE da.concept_id = ? AND s.role = 'student' AND s.classe = ?
+                ORDER BY da.student_id, da.created_at
+            """, (concept_id, classe))
+        else:
+            cursor.execute("""
+                SELECT da.id, da.student_id, da.score, da.created_at
+                FROM diagnostic_attempts da
+                JOIN students s ON da.student_id = s.id
+                WHERE da.concept_id = ? AND s.role = 'student'
+                ORDER BY da.student_id, da.created_at
+            """, (concept_id,))
+        rows = cursor.fetchall()
+
+        if not rows:
+            results.append({
+                "concept_id": concept_id, "concept_name": concept_name,
+                "total_attempts": 0, "unique_students": 0,
+                "score_stats": None, "distribution": {},
+                "pass_rate_50": 0, "pass_rate_70": 0,
+                "hardest_questions": [], "progression": {},
+                "attempt_stats": [], "min_avg_attempt": None, "max_avg_attempt": None
+            })
+            continue
+
+        scores = [float(r[2]) for r in rows]
+        student_ids = [r[1] for r in rows]
+        unique_students = len(set(student_ids))
+        global_student_ids.update(student_ids)
+
+        mean_s   = stats_lib.mean(scores)
+        std_s    = stats_lib.stdev(scores) if len(scores) > 1 else 0.0
+        min_s    = min(scores)
+        max_s    = max(scores)
+        median_s = stats_lib.median(scores)
+        sorted_s = sorted(scores)
+        n = len(sorted_s)
+        q1 = stats_lib.median(sorted_s[:n // 2]) if n >= 2 else sorted_s[0]
+        q3 = stats_lib.median(sorted_s[(n + 1) // 2:]) if n >= 2 else sorted_s[-1]
+
+        dist = {"0-20": 0, "20-40": 0, "40-60": 0, "60-80": 0, "80-100": 0}
+        for sc in scores:
+            if sc < 20:   dist["0-20"]   += 1
+            elif sc < 40: dist["20-40"]  += 1
+            elif sc < 60: dist["40-60"]  += 1
+            elif sc < 80: dist["60-80"]  += 1
+            else:         dist["80-100"] += 1
+
+        pass_50 = round(sum(1 for sc in scores if sc >= 50) / len(scores) * 100, 1)
+        pass_70 = round(sum(1 for sc in scores if sc >= 70) / len(scores) * 100, 1)
+
+        # Per-attempt-number stats (rows are ordered by student_id, created_at)
+        student_scores_ordered: dict = {}
+        for r in rows:
+            sid, score = r[1], float(r[2])
+            student_scores_ordered.setdefault(sid, []).append(score)
+
+        # Accumulate per-student per-concept scores, grouped by attempt number
+        for sid, att_list in student_scores_ordered.items():
+            if sid not in global_per_student_per_attempt:
+                global_per_student_per_attempt[sid] = {}
+            for att_num, sc in enumerate(att_list, 1):
+                global_per_student_per_attempt[sid].setdefault(att_num, []).append(sc)
+
+        max_att = max((len(v) for v in student_scores_ordered.values()), default=0)
+        attempt_stats = []
+        for att_num in range(1, max_att + 1):
+            att_scores = [v[att_num - 1] for v in student_scores_ordered.values() if len(v) >= att_num]
+            if not att_scores:
+                continue
+            att_dist: dict = {"0-20": 0, "20-40": 0, "40-60": 0, "60-80": 0, "80-100": 0}
+            for sc in att_scores:
+                if sc < 20:   att_dist["0-20"]   += 1
+                elif sc < 40: att_dist["20-40"]  += 1
+                elif sc < 60: att_dist["40-60"]  += 1
+                elif sc < 80: att_dist["60-80"]  += 1
+                else:         att_dist["80-100"] += 1
+            att_sorted = sorted(att_scores)
+            att_n = len(att_sorted)
+            att_q1 = round(stats_lib.median(att_sorted[:att_n // 2]), 1) if att_n >= 2 else att_sorted[0]
+            att_q3 = round(stats_lib.median(att_sorted[(att_n + 1) // 2:]), 1) if att_n >= 2 else att_sorted[-1]
+            attempt_stats.append({
+                "attempt_num": att_num,
+                "student_count": len(att_scores),
+                "distribution": att_dist,
+                "mean":       round(stats_lib.mean(att_scores), 1),
+                "std_dev":    round(stats_lib.stdev(att_scores), 1) if len(att_scores) > 1 else 0.0,
+                "median":     round(stats_lib.median(att_scores), 1),
+                "min":        round(min(att_scores), 1),
+                "max":        round(max(att_scores), 1),
+                "q1":         att_q1,
+                "q3":         att_q3,
+                "pass_rate_50": round(sum(1 for sc in att_scores if sc >= 50) / len(att_scores) * 100, 1),
+                "pass_rate_70": round(sum(1 for sc in att_scores if sc >= 70) / len(att_scores) * 100, 1)
+            })
+
+        min_avg_attempt = min(attempt_stats, key=lambda x: x["mean"])["attempt_num"] if attempt_stats else None
+        max_avg_attempt = max(attempt_stats, key=lambda x: x["mean"])["attempt_num"] if attempt_stats else None
+
+        hardest_classe_filter = "AND s.classe = ?" if classe else ""
+        hardest_params = [concept_id, classe] if classe else [concept_id]
+        cursor.execute(f"""
+            SELECT dqr.exercise_id,
+                   COALESCE(
+                       json_extract(e.content_json, '$.question'),
+                       json_extract(e.content_json, '$.statement'),
+                       e.title
+                   ) AS question_text,
+                   e.exercise_type,
+                   COUNT(*) AS total_att,
+                   SUM(CASE WHEN dqr.is_correct = 0 THEN 1 ELSE 0 END) AS wrong_count
+            FROM diagnostic_question_results dqr
+            JOIN diagnostic_attempts da ON dqr.attempt_id = da.id
+            JOIN students s ON da.student_id = s.id
+            JOIN exercises e ON dqr.exercise_id = e.id
+            WHERE da.concept_id = ? AND s.role = 'student' {hardest_classe_filter}
+            GROUP BY dqr.exercise_id
+            ORDER BY (CAST(wrong_count AS REAL) / total_att) DESC
+            LIMIT 8
+        """, hardest_params)
+        hardest = []
+        for r in cursor.fetchall():
+            ex_id, qtext, qtype, total_att, wrong = r
+            hardest.append({
+                "exercise_id": ex_id,
+                "question": (qtext or "")[:120],
+                "type": qtype,
+                "total_attempts": total_att,
+                "wrong_count": int(wrong),
+                "wrong_pct": round(int(wrong) / total_att * 100, 1) if total_att else 0
+            })
+
+        by_student: dict = {}
+        for r in rows:
+            sid, score = r[1], float(r[2])
+            if sid not in by_student:
+                by_student[sid] = {"first": score, "last": score}
+            else:
+                by_student[sid]["last"] = score
+
+        improved = sum(1 for sv in by_student.values() if sv["last"] > sv["first"])
+        same     = sum(1 for sv in by_student.values() if sv["last"] == sv["first"])
+        declined = sum(1 for sv in by_student.values() if sv["last"] < sv["first"])
+        deltas   = [sv["last"] - sv["first"] for sv in by_student.values() if sv["last"] != sv["first"]]
+        avg_improvement = round(stats_lib.mean(deltas), 1) if deltas else 0.0
+
+        results.append({
+            "concept_id": concept_id,
+            "concept_name": concept_name,
+            "total_attempts": len(rows),
+            "unique_students": unique_students,
+            "score_stats": {
+                "mean": round(mean_s, 1), "std_dev": round(std_s, 1),
+                "min": round(min_s, 1),   "max": round(max_s, 1),
+                "median": round(median_s, 1), "q1": round(q1, 1), "q3": round(q3, 1)
+            },
+            "distribution": dist,
+            "pass_rate_50": pass_50,
+            "pass_rate_70": pass_70,
+            "hardest_questions": hardest,
+            "progression": {
+                "improved": improved, "same": same, "declined": declined,
+                "avg_improvement": avg_improvement
+            },
+            "attempt_stats": attempt_stats,
+            "min_avg_attempt": min_avg_attempt,
+            "max_avg_attempt": max_avg_attempt
+        })
+
+    # Compute global scores as per-student test-attempt means (not raw per-concept scores)
+    # Each entry = mean score of one student across all concepts for one attempt session
+    global_scores: list = []
+    global_attempt_scores: dict = {}  # {attempt_num: [per-student means]}
+    for sid, att_data in global_per_student_per_attempt.items():
+        for att_num, concept_scores in att_data.items():
+            student_att_mean = stats_lib.mean(concept_scores)
+            global_scores.append(student_att_mean)
+            global_attempt_scores.setdefault(att_num, []).append(student_att_mean)
+
+    # Global attempt stats (attempt N: one score per student = mean across all concepts)
+    global_attempt_stats = []
+    for att_num in sorted(global_attempt_scores.keys()):
+        g_att = global_attempt_scores[att_num]
+        g_att_sorted = sorted(g_att)
+        g_att_n = len(g_att_sorted)
+        g_att_q1 = round(stats_lib.median(g_att_sorted[:g_att_n // 2]), 1) if g_att_n >= 2 else g_att_sorted[0]
+        g_att_q3 = round(stats_lib.median(g_att_sorted[(g_att_n + 1) // 2:]), 1) if g_att_n >= 2 else g_att_sorted[-1]
+        g_att_dist: dict = {"0-20": 0, "20-40": 0, "40-60": 0, "60-80": 0, "80-100": 0}
+        for sc in g_att:
+            if sc < 20:   g_att_dist["0-20"]   += 1
+            elif sc < 40: g_att_dist["20-40"]  += 1
+            elif sc < 60: g_att_dist["40-60"]  += 1
+            elif sc < 80: g_att_dist["60-80"]  += 1
+            else:         g_att_dist["80-100"] += 1
+        global_attempt_stats.append({
+            "attempt_num": att_num,
+            "count": len(g_att),
+            "distribution": g_att_dist,
+            "mean":       round(stats_lib.mean(g_att), 1),
+            "std_dev":    round(stats_lib.stdev(g_att), 1) if len(g_att) > 1 else 0.0,
+            "median":     round(stats_lib.median(g_att), 1),
+            "min":        round(min(g_att), 1),
+            "max":        round(max(g_att), 1),
+            "q1": g_att_q1, "q3": g_att_q3,
+            "pass_rate_50": round(sum(1 for sc in g_att if sc >= 50) / len(g_att) * 100, 1),
+            "pass_rate_70": round(sum(1 for sc in g_att if sc >= 70) / len(g_att) * 100, 1)
+        })
+
+    # Global stats across all concepts of the sequence
+    if global_scores:
+        g = global_scores
+        g_sorted = sorted(g)
+        g_n = len(g_sorted)
+        g_q1 = round(stats_lib.median(g_sorted[:g_n // 2]), 1) if g_n >= 2 else g_sorted[0]
+        g_q3 = round(stats_lib.median(g_sorted[(g_n + 1) // 2:]), 1) if g_n >= 2 else g_sorted[-1]
+        g_dist: dict = {"0-20": 0, "20-40": 0, "40-60": 0, "60-80": 0, "80-100": 0}
+        for sc in g:
+            if sc < 20:   g_dist["0-20"]   += 1
+            elif sc < 40: g_dist["20-40"]  += 1
+            elif sc < 60: g_dist["40-60"]  += 1
+            elif sc < 80: g_dist["60-80"]  += 1
+            else:         g_dist["80-100"] += 1
+        g_min_att = min(global_attempt_stats, key=lambda x: x["mean"])["attempt_num"] if global_attempt_stats else None
+        g_max_att = max(global_attempt_stats, key=lambda x: x["mean"])["attempt_num"] if global_attempt_stats else None
+        global_stats = {
+            "total_attempts": len(g),
+            "unique_students": len(global_student_ids),
+            "score_stats": {
+                "mean":    round(stats_lib.mean(g), 1),
+                "std_dev": round(stats_lib.stdev(g), 1) if len(g) > 1 else 0.0,
+                "median":  round(stats_lib.median(g), 1),
+                "min":     round(min(g), 1),
+                "max":     round(max(g), 1),
+                "q1": g_q1, "q3": g_q3
+            },
+            "distribution": g_dist,
+            "pass_rate_50": round(sum(1 for sc in g if sc >= 50) / len(g) * 100, 1),
+            "pass_rate_70": round(sum(1 for sc in g if sc >= 70) / len(g) * 100, 1),
+            "attempt_stats": global_attempt_stats,
+            "min_avg_attempt": g_min_att,
+            "max_avg_attempt": g_max_att
+        }
+    else:
+        global_stats = None
+
+    conn.close()
+    return {"sequence_name": sequence_name, "concepts": results, "global_stats": global_stats}
+
+
+@router.get("/analytics/diagnostic-group")
+async def get_diagnostic_group_stats(
+    concept_id: int,
+    admin_id: int = Depends(require_admin)
+):
+    """Group-level statistics for a concept's diagnostic test."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT name FROM concepts WHERE id = ?", (concept_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Concept not found")
+    concept_name = row[0]
+
+    cursor.execute("""
+        SELECT da.id, da.student_id, da.score, da.created_at
+        FROM diagnostic_attempts da
+        JOIN students s ON da.student_id = s.id
+        WHERE da.concept_id = ? AND s.role = 'student'
+        ORDER BY da.created_at
+    """, (concept_id,))
+    rows = cursor.fetchall()
+
+    if not rows:
+        conn.close()
+        return {
+            "concept_name": concept_name,
+            "total_attempts": 0, "unique_students": 0,
+            "score_stats": None, "distribution": {},
+            "pass_rate_50": 0, "pass_rate_70": 0,
+            "hardest_questions": [], "progression": {}
+        }
+
+    scores = [float(r[2]) for r in rows]
+    student_ids = [r[1] for r in rows]
+    unique_students = len(set(student_ids))
+
+    mean_s  = stats_lib.mean(scores)
+    std_s   = stats_lib.stdev(scores) if len(scores) > 1 else 0.0
+    min_s   = min(scores)
+    max_s   = max(scores)
+    median_s = stats_lib.median(scores)
+    sorted_s = sorted(scores)
+    n = len(sorted_s)
+    q1 = stats_lib.median(sorted_s[:n // 2]) if n >= 2 else sorted_s[0]
+    q3 = stats_lib.median(sorted_s[(n + 1) // 2:]) if n >= 2 else sorted_s[-1]
+
+    dist = {"0-20": 0, "20-40": 0, "40-60": 0, "60-80": 0, "80-100": 0}
+    for s in scores:
+        if s < 20:   dist["0-20"]   += 1
+        elif s < 40: dist["20-40"]  += 1
+        elif s < 60: dist["40-60"]  += 1
+        elif s < 80: dist["60-80"]  += 1
+        else:        dist["80-100"] += 1
+
+    pass_50 = round(sum(1 for s in scores if s >= 50) / len(scores) * 100, 1)
+    pass_70 = round(sum(1 for s in scores if s >= 70) / len(scores) * 100, 1)
+
+    # Per-question stats from diagnostic_question_results
+    cursor.execute("""
+        SELECT dqr.exercise_id,
+               COALESCE(
+                   json_extract(e.content_json, '$.question'),
+                   json_extract(e.content_json, '$.statement'),
+                   e.title
+               ) AS question_text,
+               e.exercise_type,
+               COUNT(*) AS total_att,
+               SUM(CASE WHEN dqr.is_correct = 0 THEN 1 ELSE 0 END) AS wrong_count
+        FROM diagnostic_question_results dqr
+        JOIN diagnostic_attempts da ON dqr.attempt_id = da.id
+        JOIN students s ON da.student_id = s.id
+        JOIN exercises e ON dqr.exercise_id = e.id
+        WHERE da.concept_id = ? AND s.role = 'student'
+        GROUP BY dqr.exercise_id
+        ORDER BY (CAST(wrong_count AS REAL) / total_att) DESC
+        LIMIT 8
+    """, (concept_id,))
+    hardest = []
+    for r in cursor.fetchall():
+        ex_id, qtext, qtype, total_att, wrong = r
+        hardest.append({
+            "exercise_id": ex_id,
+            "question": (qtext or "")[:120],
+            "type": qtype,
+            "total_attempts": total_att,
+            "wrong_count": int(wrong),
+            "wrong_pct": round(int(wrong) / total_att * 100, 1) if total_att else 0
+        })
+
+    # Progression: first vs last score per student
+    by_student: dict = {}
+    for r in rows:
+        sid, score = r[1], float(r[2])
+        if sid not in by_student:
+            by_student[sid] = {"first": score, "last": score}
+        else:
+            by_student[sid]["last"] = score
+
+    improved = sum(1 for s in by_student.values() if s["last"] > s["first"])
+    same     = sum(1 for s in by_student.values() if s["last"] == s["first"])
+    declined = sum(1 for s in by_student.values() if s["last"] < s["first"])
+    deltas   = [s["last"] - s["first"] for s in by_student.values() if s["last"] != s["first"]]
+    avg_improvement = round(stats_lib.mean(deltas), 1) if deltas else 0.0
+
+    conn.close()
+    return {
+        "concept_name": concept_name,
+        "total_attempts": len(rows),
+        "unique_students": unique_students,
+        "score_stats": {
+            "mean": round(mean_s, 1), "std_dev": round(std_s, 1),
+            "min": round(min_s, 1),   "max": round(max_s, 1),
+            "median": round(median_s, 1), "q1": round(q1, 1), "q3": round(q3, 1)
+        },
+        "distribution": dist,
+        "pass_rate_50": pass_50,
+        "pass_rate_70": pass_70,
+        "hardest_questions": hardest,
+        "progression": {
+            "improved": improved, "same": same, "declined": declined,
+            "avg_improvement": avg_improvement
+        }
+    }
+
+
+@router.get("/analytics/students-overview")
+async def get_students_overview(
+    classe: Optional[str] = None,
+    admin_id: int = Depends(require_admin)
+):
+    """Per-student scores across all concepts that have diagnostic exercises."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Concepts with diagnostic exercises
+    cursor.execute("""
+        SELECT DISTINCT c.id, c.name
+        FROM concepts c
+        JOIN exercises e ON e.concept_id = c.id
+        WHERE e.is_diagnostic = 1 AND e.created_by_admin_id IS NOT NULL AND e.is_active = 1
+        ORDER BY c.id
+    """)
+    concepts = [{"id": r[0], "name": r[1]} for r in cursor.fetchall()]
+
+    # All students (optionally filtered by classe)
+    if classe:
+        cursor.execute(
+            "SELECT id, username, created_at, classe FROM students WHERE role='student' AND classe=? ORDER BY username",
+            (classe,)
+        )
+    else:
+        cursor.execute("SELECT id, username, created_at, classe FROM students WHERE role='student' ORDER BY username")
+    students_raw = cursor.fetchall()
+
+    students = []
+    for sid, username, created_at, student_classe in students_raw:
+        concept_scores: dict = {}
+        for c in concepts:
+            cursor.execute("""
+                SELECT score, created_at FROM diagnostic_attempts
+                WHERE student_id = ? AND concept_id = ?
+                ORDER BY created_at
+            """, (sid, c["id"]))
+            atts = cursor.fetchall()
+            if atts:
+                concept_scores[str(c["id"])] = {
+                    "attempts":     len(atts),
+                    "first_score":  round(float(atts[0][0]), 1),
+                    "latest_score": round(float(atts[-1][0]), 1),
+                    "improvement":  round(float(atts[-1][0]) - float(atts[0][0]), 1)
+                }
+            else:
+                concept_scores[str(c["id"])] = None
+
+        scored = [v["latest_score"] for v in concept_scores.values() if v]
+        students.append({
+            "id": sid,
+            "username": username,
+            "classe": student_classe,
+            "joined": (created_at or "")[:10],
+            "scores": concept_scores,
+            "overall_avg": round(stats_lib.mean(scored), 1) if scored else None,
+            "concepts_attempted": len(scored)
+        })
+
+    conn.close()
+    return {"concepts": concepts, "students": students}
+
+
+@router.get("/analytics/student/{student_id}")
+async def get_student_analytics(
+    student_id: int,
+    admin_id: int = Depends(require_admin)
+):
+    """Detailed analytics for a single student: per-concept progression + question stats."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id, username, email FROM students WHERE id=? AND role='student'", (student_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Student not found")
+    student = {"id": row[0], "username": row[1], "email": row[2]}
+
+    # All attempts grouped by concept, ordered by date
+    cursor.execute("""
+        SELECT da.concept_id, c.name, da.score, da.created_at,
+               COALESCE(m.mastery_level, 0.0)
+        FROM diagnostic_attempts da
+        JOIN concepts c ON da.concept_id = c.id
+        LEFT JOIN mastery_state m ON m.concept_id = da.concept_id AND m.student_id = da.student_id
+        WHERE da.student_id = ?
+        ORDER BY da.concept_id, da.created_at
+    """, (student_id,))
+
+    concept_map: dict = {}
+    for cid, cname, score, created_at, mastery in cursor.fetchall():
+        if cid not in concept_map:
+            concept_map[cid] = {
+                "concept_id": cid, "concept_name": cname,
+                "mastery_level": round(float(mastery) * 100, 1),
+                "attempts": []
+            }
+        concept_map[cid]["attempts"].append({
+            "attempt_num": len(concept_map[cid]["attempts"]) + 1,
+            "score": round(float(score), 1),
+            "date": (created_at or "")[:10]
+        })
+
+    result_list = []
+    strong, weak = [], []
+    for hist in concept_map.values():
+        atts = hist["attempts"]
+        first_s, last_s = atts[0]["score"], atts[-1]["score"]
+        improvement = round(last_s - first_s, 1)
+        hist["improvement"] = improvement
+        hist["trend"] = "improving" if improvement > 5 else ("declining" if improvement < -5 else "stable")
+        result_list.append(hist)
+        if last_s >= 70:
+            strong.append({"concept_name": hist["concept_name"], "score": last_s})
+        elif last_s < 50:
+            weak.append({"concept_name": hist["concept_name"], "score": last_s})
+
+    # Per-question success rate for this student
+    cursor.execute("""
+        SELECT dqr.exercise_id,
+               COALESCE(
+                   json_extract(e.content_json, '$.question'),
+                   json_extract(e.content_json, '$.statement'),
+                   e.title
+               ) AS qtext,
+               e.exercise_type,
+               COUNT(*) AS total,
+               SUM(dqr.is_correct) AS correct_cnt
+        FROM diagnostic_question_results dqr
+        JOIN diagnostic_attempts da ON dqr.attempt_id = da.id
+        JOIN exercises e ON dqr.exercise_id = e.id
+        WHERE da.student_id = ?
+        GROUP BY dqr.exercise_id
+        ORDER BY (CAST(correct_cnt AS REAL) / total) ASC
+    """, (student_id,))
+    question_stats = []
+    for r in cursor.fetchall():
+        ex_id, qtext, qtype, total, correct_cnt = r
+        question_stats.append({
+            "exercise_id": ex_id,
+            "question": (qtext or "")[:120],
+            "type": qtype,
+            "total_attempts": total,
+            "correct_count": int(correct_cnt),
+            "success_rate": round(int(correct_cnt) / total * 100, 1) if total else 0
+        })
+
+    conn.close()
+    return {
+        "student": student,
+        "concept_histories": sorted(result_list, key=lambda x: x["concept_name"]),
+        "strong_concepts": sorted(strong, key=lambda x: -x["score"]),
+        "weak_concepts":   sorted(weak,   key=lambda x:  x["score"]),
+        "question_stats": question_stats
+    }

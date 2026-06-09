@@ -173,6 +173,19 @@ def init_db():
         )
     """)
 
+    # Per-question diagnostic results (for analytics)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS diagnostic_question_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            attempt_id INTEGER NOT NULL REFERENCES diagnostic_attempts(id),
+            exercise_id INTEGER NOT NULL REFERENCES exercises(id),
+            is_correct INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_dqr_attempt  ON diagnostic_question_results(attempt_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_dqr_exercise ON diagnostic_question_results(exercise_id)")
+
     # Admin action audit log
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS admin_logs (
@@ -222,6 +235,12 @@ def init_db():
             ('mastery_threshold', '0.7', 'Mastery level threshold (0-1)'),
             ('weak_concept_threshold', '0.4', 'Weakness threshold (0-1)')
     """)
+
+    # Migration: add classe column if it doesn't exist yet
+    try:
+        cursor.execute("ALTER TABLE students ADD COLUMN classe TEXT DEFAULT NULL")
+    except Exception:
+        pass  # Column already exists
 
     # Indexes for performance
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_students_role ON students(role)")

@@ -150,12 +150,24 @@ class API {
         return this.request('GET', `/curriculum/concepts-by-sequence/${sequenceId}`);
     }
 
+    async getModulesProgress() {
+        return this.request('GET', '/curriculum/progress');
+    }
+
     async getDiagnosticQuestionsForConcept(conceptId) {
         return this.request('GET', `/diagnostic/questions/${conceptId}`);
     }
 
     async submitDiagnosticTest(answers) {
         return this.request('POST', '/diagnostic/submit', { answers });
+    }
+
+    async getConceptDiagnosticHistory(conceptId) {
+        return this.request('GET', `/diagnostic/history/${conceptId}`);
+    }
+
+    async getSequenceDiagnosticHistory(sequenceId) {
+        return this.request('GET', `/diagnostic/sequence-history/${sequenceId}`);
     }
 
     async explainAnswer(payload) {

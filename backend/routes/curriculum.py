@@ -221,6 +221,87 @@ async def get_sequence_details(
     conn.close()
     return seq_data
 
+@router.get("/progress")
+async def get_modules_progress(authorization: Optional[str] = Header(None)):
+    """Return module-based progress with badge and certificate status per sequence/module."""
+    student_id = get_current_student(authorization)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Fetch student name
+    cursor.execute("SELECT username FROM students WHERE id = ?", (student_id,))
+    row = cursor.fetchone()
+    student_name = row[0] if row else "Student"
+
+    cursor.execute("SELECT id, title FROM modules ORDER BY order_index")
+    modules_raw = cursor.fetchall()
+
+    modules_out = []
+    total_modules = len(modules_raw)
+    completed_modules = 0
+
+    for mod_id, mod_title in modules_raw:
+        cursor.execute(
+            "SELECT id, title FROM sequences WHERE module_id = ? ORDER BY order_index",
+            (mod_id,)
+        )
+        seqs = cursor.fetchall()
+
+        sequences_out = []
+        module_fully_badged = True
+
+        for seq_id, seq_title in seqs:
+            # Average mastery of all concepts in this sequence for this student
+            cursor.execute("""
+                SELECT AVG(COALESCE(m.mastery_level, 0.0))
+                FROM concepts c
+                LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = ?
+                WHERE c.sequence_id = ?
+            """, (student_id, seq_id))
+            avg_row = cursor.fetchone()
+            avg_mastery = float(avg_row[0]) if avg_row and avg_row[0] is not None else 0.0
+
+            badge_earned = avg_mastery >= 0.9
+            if not badge_earned:
+                module_fully_badged = False
+
+            sequences_out.append({
+                "id": seq_id,
+                "title": seq_title,
+                "avg_mastery": round(avg_mastery * 100, 1),
+                "badge_earned": badge_earned
+            })
+
+        if not seqs:
+            module_fully_badged = False
+
+        certificate_earned = module_fully_badged
+        if certificate_earned:
+            completed_modules += 1
+
+        sequences_completed = sum(1 for s in sequences_out if s["badge_earned"])
+        modules_out.append({
+            "id": mod_id,
+            "title": mod_title,
+            "sequences": sequences_out,
+            "sequences_completed": sequences_completed,
+            "total_sequences": len(sequences_out),
+            "certificate_earned": certificate_earned
+        })
+
+    global_progress = round((completed_modules / total_modules) * 100, 1) if total_modules else 0.0
+
+    conn.close()
+    return {
+        "student_name": student_name,
+        "global_progress": global_progress,
+        "completed_modules": completed_modules,
+        "total_modules": total_modules,
+        "modules": modules_out
+    }
+
+
 @router.get("/concepts-by-sequence/{sequence_id}")
 async def get_concepts_by_sequence(
     sequence_id: int,

@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - AdaptiveLearn</title>
+    <title>Admin — AdaptiveLearn</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="../css/admin-style.css">
 </head>
 <body>
@@ -12,21 +14,28 @@
         <div id="loginPage" class="login-page">
             <div class="login-container">
                 <div class="login-box">
-                    <h1>🎓 AdaptiveLearn Admin</h1>
+                    <div class="login-logo">
+                        <div class="login-logo-mark">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                            </svg>
+                        </div>
+                        <h1>AdaptiveLearn</h1>
+                    </div>
                     <h2>Admin Login</h2>
                     <form onsubmit="handleAdminLogin(event)">
                         <div class="form-group">
-                            <label for="adminUsername">Username:</label>
+                            <label for="adminUsername">Username</label>
                             <input type="text" id="adminUsername" placeholder="Enter your username" required>
                         </div>
                         <div class="form-group">
-                            <label for="adminPassword">Password:</label>
+                            <label for="adminPassword">Password</label>
                             <input type="password" id="adminPassword" placeholder="Enter your password" required>
                         </div>
-                        <button type="submit" class="btn btn-login">Login</button>
+                        <button type="submit" class="btn btn-login">Sign In</button>
                         <p id="loginError" class="error-message" style="display: none;"></p>
                     </form>
-                    <p class="login-footer">For admin access, contact system administrator</p>
+                    <p class="login-footer">For admin access, contact the system administrator</p>
                 </div>
             </div>
         </div>
@@ -36,23 +45,52 @@
         <!-- Navigation -->
         <nav class="admin-navbar">
             <div class="nav-container">
-                <div class="logo">🎓 AdaptiveLearn Admin</div>
+                <div class="logo">
+                    <span class="logo-mark">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                        </svg>
+                    </span>
+                    AdaptiveLearn
+                    <span class="logo-badge">Admin</span>
+                </div>
                 <ul class="nav-menu">
-                    <li><a href="#" onclick="navigateTo('dashboard')" class="nav-link">Dashboard</a></li>
-                    <li><a href="#" onclick="navigateTo('students')" class="nav-link">Students</a></li>
-                    <li><a href="#" onclick="navigateTo('exercises')" class="nav-link">Exercises</a></li>
-                    <li><a href="#" onclick="navigateTo('analytics')" class="nav-link">Analytics</a></li>
-                    <li><a href="#" onclick="navigateTo('logs')" class="nav-link">Logs</a></li>
-                    <li><a href="#" onclick="logout()" class="nav-link logout">Logout</a></li>
+                    <li><a href="#" onclick="navigateTo('dashboard')" class="nav-link">
+                        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        Dashboard
+                    </a></li>
+                    <li><a href="#" onclick="navigateTo('students')" class="nav-link">
+                        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                        Students
+                    </a></li>
+                    <li><a href="#" onclick="navigateTo('exercises')" class="nav-link">
+                        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                        Exercises
+                    </a></li>
+                    <li><a href="#" onclick="navigateTo('analytics')" class="nav-link">
+                        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        Analytics
+                    </a></li>
+                    <li><a href="#" onclick="navigateTo('logs')" class="nav-link">
+                        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        Logs
+                    </a></li>
+                    <li><a href="#" onclick="logout()" class="nav-link logout">
+                        <svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        Logout
+                    </a></li>
                 </ul>
             </div>
         </nav>
 
         <div class="admin-container">
-            
+
             <!-- Dashboard Page -->
             <div id="dashboard" class="admin-page active">
-                <h1>Admin Dashboard</h1>
+                <h1>
+                    <svg class="page-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    Admin Dashboard
+                </h1>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h3>Total Students</h3>
@@ -74,7 +112,7 @@
 
                 <div class="dashboard-grid">
                     <div class="dashboard-section">
-                        <h2>Student Mastery Distribution</h2>
+                        <h2>Répartition Maîtrise Étudiants</h2>
                         <div id="masteryChart" class="chart">
                             <div class="bar-item">
                                 <span>Excellent (≥70%)</span>
@@ -82,12 +120,12 @@
                                 <span id="excellentCount">0</span>
                             </div>
                             <div class="bar-item">
-                                <span>Good (40-70%)</span>
+                                <span>Bon (40-70%)</span>
                                 <div class="bar"><div class="fill good" style="width: 0%"></div></div>
                                 <span id="goodCount">0</span>
                             </div>
                             <div class="bar-item">
-                                <span>Needs Work (<40%)</span>
+                                <span>À améliorer (&lt;40%)</span>
                                 <div class="bar"><div class="fill weak" style="width: 0%"></div></div>
                                 <span id="weakCount">0</span>
                             </div>
@@ -95,37 +133,39 @@
                     </div>
 
                     <div class="dashboard-section">
-                        <h2>Recent Admin Actions</h2>
-                        <div id="recentLogs" class="logs-list">
-                            <!-- Logs loaded here -->
-                        </div>
+                        <h2>Actions Admin Récentes</h2>
+                        <div id="recentLogs" class="logs-list"></div>
                     </div>
+                </div>
+
+                <!-- Quick Diagnostic Stats -->
+                <div class="dashboard-section full-width" style="margin-top:1.5rem;">
+                    <h2>
+                        <svg style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;color:var(--text-tertiary);" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        Statistiques Diagnostiques Rapides
+                    </h2>
+                    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+                        <label style="font-weight:600;font-size:0.85rem;color:var(--text-secondary);">Test (Séquence) :</label>
+                        <select id="dashSeqSelect" onchange="loadDashSeqStats()" style="padding:.4rem .8rem;border-radius:8px;border:1.5px solid var(--border);min-width:240px;font-family:inherit;font-size:0.875rem;">
+                            <option value="">— Sélectionner un test —</option>
+                        </select>
+                    </div>
+                    <div id="dashSeqStats" style="display:none;"></div>
+                    <div id="dashSeqNoData" style="display:none;color:var(--text-tertiary);font-style:italic;font-size:0.875rem;">Aucune donnée disponible pour ce test.</div>
                 </div>
             </div>
 
             <!-- Students Management Page -->
             <div id="students" class="admin-page">
-                <h1>Student Management</h1>
-                
-                <button class="btn btn-primary" onclick="showCreateStudentForm()">+ Create Student</button>
+                <h1>
+                    <svg class="page-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                    Student Management
+                </h1>
 
-                <!-- Create Student Form -->
-                <div id="createStudentForm" class="form-modal" style="display:none;">
-                    <div class="form-content">
-                        <h2>Create New Student</h2>
-                        <form onsubmit="handleCreateStudent(event)">
-                            <input type="text" id="newUsername" placeholder="Username" required>
-                            <input type="email" id="newEmail" placeholder="Email" required>
-                            <input type="password" id="newPassword" placeholder="Password" required>
-                            <select id="newRole">
-                                <option value="student">Student</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                            <button type="submit" class="btn btn-success">Create</button>
-                            <button type="button" class="btn btn-secondary" onclick="hideCreateStudentForm()">Cancel</button>
-                        </form>
-                    </div>
-                </div>
+                <button class="btn btn-primary" onclick="showCreateStudentForm()">
+                    <svg style="width:14px;height:14px;stroke:white;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Create Student
+                </button>
 
                 <!-- Students Table -->
                 <div class="table-responsive">
@@ -135,140 +175,29 @@
                                 <th>ID</th>
                                 <th>Username</th>
                                 <th>Email</th>
+                                <th>Classe</th>
                                 <th>Role</th>
                                 <th>Status</th>
                                 <th>Created</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="studentsTableBody">
-                            <!-- Students loaded here -->
-                        </tbody>
+                        <tbody id="studentsTableBody"></tbody>
                     </table>
                 </div>
             </div>
 
             <!-- Exercises Management Page -->
             <div id="exercises" class="admin-page">
-                <h1>Exercise Management</h1>
-                
-                <button class="btn btn-primary" onclick="showCreateExerciseForm()">+ Create Exercise</button>
+                <h1>
+                    <svg class="page-icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                    Exercise Management
+                </h1>
 
-                <!-- Create Exercise Form -->
-                <div id="createExerciseForm" class="form-modal" style="display:none;">
-                    <div class="form-content large">
-                        <h2>Create New Exercise</h2>
-                        <form onsubmit="handleCreateExercise(event)">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Title *</label>
-                                    <input type="text" id="exTitle" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Difficulty *</label>
-                                    <select id="exDifficulty" required>
-                                        <option value="">-- Select --</option>
-                                        <option value="easy">Easy</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="challenging">Challenging</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Exercise Type *</label>
-                                    <select id="exType" onchange="updateExerciseForm()" required>
-                                        <option value="">-- Select --</option>
-                                        <option value="mcq">Multiple Choice</option>
-                                        <option value="short_answer">Short Answer</option>
-                                        <option value="long_answer">Long Answer</option>
-                                        <option value="true_false">True/False</option>
-                                        <option value="drag_drop">Drag & Drop</option>
-                                        <option value="match_lines">Match Lines</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Concept *</label>
-                                    <select id="exConcept" required>
-                                        <option value="">-- Select Concept --</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Error Type Targeted</label>
-                                    <select id="exErrorType">
-                                        <option value="">None (General)</option>
-                                        <option value="conceptual">Conceptual Errors</option>
-                                        <option value="procedural">Procedural Errors</option>
-                                        <option value="careless">Careless Errors</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="exDiagnostic"> Is Diagnostic?
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Dynamic fields based on exercise type -->
-                            <div id="dynamicExerciseFields">
-                                <!-- Fields injected here -->
-                            </div>
-
-                            <button type="submit" class="btn btn-success">Create Exercise</button>
-                            <button type="button" class="btn btn-secondary" onclick="hideCreateExerciseForm()">Cancel</button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Edit Exercise Modal -->
-                <div id="editExerciseForm" class="form-modal" style="display:none;">
-                    <div class="form-content large">
-                        <h2>Edit Exercise</h2>
-                        <form onsubmit="handleEditExercise(event)">
-                            <input type="hidden" id="editExId">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Title *</label>
-                                    <input type="text" id="editExTitle" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Difficulty *</label>
-                                    <select id="editExDifficulty" required>
-                                        <option value="easy">Easy</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="challenging">Challenging</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Error Type Targeted</label>
-                                    <select id="editExErrorType">
-                                        <option value="">None (General)</option>
-                                        <option value="conceptual">Conceptual Errors</option>
-                                        <option value="procedural">Procedural Errors</option>
-                                        <option value="careless">Careless Errors</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="editExDiagnostic"> Is Diagnostic?
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Content JSON</label>
-                                <textarea id="editExContentJson" rows="6" style="font-family:monospace;font-size:0.85rem;"></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-success">Save Changes</button>
-                            <button type="button" class="btn btn-secondary" onclick="hideEditExerciseForm()">Cancel</button>
-                        </form>
-                    </div>
-                </div>
+                <button class="btn btn-primary" onclick="showCreateExerciseForm()">
+                    <svg style="width:14px;height:14px;stroke:white;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Create Exercise
+                </button>
 
                 <!-- Exercises Table -->
                 <div class="table-responsive">
@@ -286,58 +215,71 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="exercisesTableBody">
-                            <!-- Exercises loaded here -->
-                        </tbody>
+                        <tbody id="exercisesTableBody"></tbody>
                     </table>
                 </div>
             </div>
 
             <!-- Analytics Page -->
             <div id="analytics" class="admin-page">
-                <h1>System Analytics</h1>
-                
-                <div class="analytics-grid">
-                    <div class="analytics-card">
-                        <h2>System Overview</h2>
-                        <div class="metric">
-                            <span>Total Students</span>
-                            <strong id="analyticsStudents">0</strong>
-                        </div>
-                        <div class="metric">
-                            <span>Average Mastery</span>
-                            <strong id="analyticsAvgMastery">0%</strong>
-                        </div>
-                        <div class="metric">
-                            <span>Total Exercises</span>
-                            <strong id="analyticsExercises">0</strong>
-                        </div>
-                        <div class="metric">
-                            <span>Diagnostic Rate</span>
-                            <strong id="analyticsDiagnostic">0%</strong>
-                        </div>
-                    </div>
+                <h1>
+                    <svg class="page-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Analytics
+                </h1>
 
-                    <div class="analytics-card">
-                        <h2>Weakest Concepts</h2>
-                        <div id="weakestConceptsList">
-                            <!-- Loaded dynamically -->
-                        </div>
-                    </div>
+                <!-- Tab navigation -->
+                <div class="analytics-tabs">
+                    <button class="atab active" id="atab-group" onclick="switchAnalyticsTab('group')">
+                        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        Analyse de Groupe
+                    </button>
+                    <button class="atab" id="atab-students" onclick="switchAnalyticsTab('students')">
+                        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                        Vue des Étudiants
+                    </button>
+                </div>
 
-                    <div class="analytics-card">
-                        <h2>Most Common Errors</h2>
-                        <div id="commonErrorsList">
-                            <!-- Loaded dynamically -->
-                        </div>
+                <!-- Tab 1: Group Diagnostic Analysis -->
+                <div id="analyticsTabGroup" class="analytics-tab-content">
+                    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+                        <label style="font-weight:600;font-size:0.85rem;color:var(--text-secondary);">Classe :</label>
+                        <select id="groupClasseSelect" onchange="onAnalyticsClasseChange()" style="padding:.45rem .9rem;border-radius:8px;border:1.5px solid var(--border);min-width:160px;font-family:inherit;font-size:0.875rem;">
+                            <option value="">— Toutes les classes —</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+                        <label style="font-weight:600;font-size:0.85rem;color:var(--text-secondary);">Test (Séquence) :</label>
+                        <select id="groupSeqSelect" onchange="loadGroupSequenceStats()" style="padding:.45rem .9rem;border-radius:8px;border:1.5px solid var(--border);min-width:240px;font-family:inherit;font-size:0.875rem;">
+                            <option value="">— Sélectionner un test —</option>
+                        </select>
+                        <span id="groupStatsLoading" style="display:none;color:var(--primary);font-style:italic;font-size:0.85rem;">Chargement…</span>
+                    </div>
+                    <div id="groupStatsContent"></div>
+                    <div id="groupStatsEmpty" style="display:none;color:var(--text-tertiary);font-style:italic;padding:1rem 0;font-size:0.875rem;">Aucune donnée disponible pour ce test.</div>
+                </div>
+
+                <!-- Tab 2: Students Overview -->
+                <div id="analyticsTabStudents" class="analytics-tab-content" style="display:none;">
+                    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;">
+                        <label style="font-weight:600;font-size:0.85rem;color:var(--text-secondary);">Classe :</label>
+                        <select id="studentsClasseSelect" onchange="onStudentsClasseChange()" style="padding:.45rem .9rem;border-radius:8px;border:1.5px solid var(--border);min-width:160px;font-family:inherit;font-size:0.875rem;">
+                            <option value="">— Toutes les classes —</option>
+                        </select>
+                    </div>
+                    <div id="studentsOverviewContent">
+                        <p style="color:var(--text-tertiary);font-style:italic;font-size:0.875rem;">Cliquez sur "Vue des Étudiants" pour charger les données.</p>
                     </div>
                 </div>
+
             </div>
 
             <!-- Logs Page -->
             <div id="logs" class="admin-page">
-                <h1>Admin Action Logs</h1>
-                
+                <h1>
+                    <svg class="page-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Admin Action Logs
+                </h1>
+
                 <div class="logs-filters">
                     <input type="text" id="logSearch" placeholder="Search logs...">
                     <select id="logAction" onchange="filterLogs()">
@@ -363,13 +305,159 @@
                                 <th>Details</th>
                             </tr>
                         </thead>
-                        <tbody id="logsTableBody">
-                            <!-- Logs loaded here -->
-                        </tbody>
+                        <tbody id="logsTableBody"></tbody>
                     </table>
                 </div>
             </div>
         </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         MODAUX — placés directement sous <body> pour que
+         position:fixed soit toujours ancré au viewport, sans
+         être piégé dans un stacking context créé par les
+         animations CSS des .admin-page parents.
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Student Detail Modal -->
+    <div id="studentDetailModal" class="modal" style="display:none;">
+        <div class="modal-content large-modal">
+            <span class="close" onclick="closeStudentDetail()">&times;</span>
+            <h2 id="studentDetailName" style="margin-bottom:1.5rem;"></h2>
+            <div id="studentDetailContent"></div>
+        </div>
+    </div>
+
+    <!-- Create Student Modal -->
+    <div id="createStudentForm" class="form-modal" style="display:none;">
+        <div class="form-content">
+            <h2>Create New Student</h2>
+            <form onsubmit="handleCreateStudent(event)">
+                <input type="text" id="newUsername" placeholder="Username" required>
+                <input type="email" id="newEmail" placeholder="Email" required>
+                <input type="password" id="newPassword" placeholder="Password" required>
+                <input type="text" id="newClasse" placeholder="Classe (ex: TCS1, 1BAC-A…)">
+                <select id="newRole">
+                    <option value="student">Student</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <button type="submit" class="btn btn-success">Create</button>
+                <button type="button" class="btn btn-secondary" onclick="hideCreateStudentForm()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Exercise Modal -->
+    <div id="createExerciseForm" class="form-modal" style="display:none;">
+        <div class="form-content large">
+            <h2>Create New Exercise</h2>
+            <form onsubmit="handleCreateExercise(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Title *</label>
+                        <input type="text" id="exTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Difficulty *</label>
+                        <select id="exDifficulty" required>
+                            <option value="">-- Select --</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="challenging">Challenging</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Exercise Type *</label>
+                        <select id="exType" onchange="updateExerciseForm()" required>
+                            <option value="">-- Select --</option>
+                            <option value="mcq">Multiple Choice</option>
+                            <option value="short_answer">Short Answer</option>
+                            <option value="long_answer">Long Answer</option>
+                            <option value="true_false">True/False</option>
+                            <option value="drag_drop">Drag &amp; Drop</option>
+                            <option value="match_lines">Match Lines</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Concept *</label>
+                        <select id="exConcept" required>
+                            <option value="">-- Select Concept --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Error Type Targeted</label>
+                        <select id="exErrorType">
+                            <option value="">None (General)</option>
+                            <option value="conceptual">Conceptual Errors</option>
+                            <option value="procedural">Procedural Errors</option>
+                            <option value="careless">Careless Errors</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label style="flex-direction:row;align-items:center;gap:0.5rem;text-transform:none;letter-spacing:0;">
+                            <input type="checkbox" id="exDiagnostic"> Is Diagnostic?
+                        </label>
+                    </div>
+                </div>
+
+                <div id="dynamicExerciseFields"></div>
+
+                <button type="submit" class="btn btn-success">Create Exercise</button>
+                <button type="button" class="btn btn-secondary" onclick="hideCreateExerciseForm()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Exercise Modal -->
+    <div id="editExerciseForm" class="form-modal" style="display:none;">
+        <div class="form-content large">
+            <h2>Edit Exercise</h2>
+            <form onsubmit="handleEditExercise(event)">
+                <input type="hidden" id="editExId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Title *</label>
+                        <input type="text" id="editExTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Difficulty *</label>
+                        <select id="editExDifficulty" required>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="challenging">Challenging</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Error Type Targeted</label>
+                        <select id="editExErrorType">
+                            <option value="">None (General)</option>
+                            <option value="conceptual">Conceptual Errors</option>
+                            <option value="procedural">Procedural Errors</option>
+                            <option value="careless">Careless Errors</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label style="flex-direction:row;align-items:center;gap:0.5rem;text-transform:none;letter-spacing:0;">
+                            <input type="checkbox" id="editExDiagnostic"> Is Diagnostic?
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Content JSON</label>
+                    <textarea id="editExContentJson" rows="6" style="font-family:monospace;font-size:0.85rem;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Save Changes</button>
+                <button type="button" class="btn btn-secondary" onclick="hideEditExerciseForm()">Cancel</button>
+            </form>
         </div>
     </div>
 

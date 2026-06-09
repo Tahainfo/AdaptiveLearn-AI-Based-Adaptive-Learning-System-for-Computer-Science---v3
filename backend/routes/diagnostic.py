@@ -11,6 +11,7 @@ from backend.models.database_models import DiagnosticTestRequest, DiagnosticResu
 from backend.routes.auth import get_current_student
 from backend.database.db import get_db_connection
 import json
+import random
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
 
@@ -65,8 +66,16 @@ async def get_diagnostic_questions_for_concept(
           AND is_diagnostic         = 1
           AND is_active             = 1
           AND created_by_admin_id IS NOT NULL
-          AND exercise_type         IN ('mcq', 'true_false', 'short_answer')
-        ORDER BY RANDOM()
+          AND exercise_type         IN ('mcq', 'true_false', 'short_answer', 'drag_drop', 'match_lines', 'long_answer')
+        ORDER BY CASE exercise_type
+                     WHEN 'true_false'   THEN 1
+                     WHEN 'drag_drop'    THEN 2
+                     WHEN 'match_lines'  THEN 3
+                     WHEN 'mcq'          THEN 4
+                     WHEN 'short_answer' THEN 5
+                     WHEN 'long_answer'  THEN 6
+                 END,
+                 RANDOM()
         LIMIT 10
     """, (concept_id,))
 
@@ -92,6 +101,7 @@ async def get_diagnostic_questions_for_concept(
                 continue
             questions.append({
                 "id": ex_id,
+                "type": "mcq",
                 "question": question_text,
                 "input_type": "radio",
                 "options": options,
@@ -104,6 +114,7 @@ async def get_diagnostic_questions_for_concept(
             correct_option = 0 if content.get("correct_answer", True) else 1
             questions.append({
                 "id": ex_id,
+                "type": "true_false",
                 "question": question_text,
                 "input_type": "radio",
                 "options": ["True", "False"],
@@ -117,10 +128,64 @@ async def get_diagnostic_questions_for_concept(
             alternative_answers = content.get("alternative_answers", [])
             questions.append({
                 "id": ex_id,
+                "type": "short_answer",
                 "question": question_text,
                 "input_type": "text",
                 "correct_answer": correct_answer,
                 "alternative_answers": alternative_answers,
+                "explanation": expl,
+            })
+
+        elif exercise_type == "drag_drop":
+            question_text = content.get("question") or exercise_prompt or title
+            items = content.get("items", [])
+            if not items:
+                continue
+            correct_items = list(items)
+            shuffled = list(items)
+            random.shuffle(shuffled)
+            questions.append({
+                "id": ex_id,
+                "type": "drag_drop",
+                "question": question_text,
+                "input_type": "drag_drop",
+                "items": shuffled,
+                "correct_items": correct_items,
+                "explanation": expl,
+            })
+
+        elif exercise_type == "match_lines":
+            question_text = content.get("question") or exercise_prompt or title
+            pairs = content.get("pairs", [])
+            if not pairs:
+                continue
+            left_items = [p[0] for p in pairs]
+            right_items = [p[1] for p in pairs]
+            shuffled_rights = list(right_items)
+            random.shuffle(shuffled_rights)
+            correct_pairs = [shuffled_rights.index(right_items[i]) for i in range(len(pairs))]
+            questions.append({
+                "id": ex_id,
+                "type": "match_lines",
+                "question": question_text,
+                "input_type": "match_lines",
+                "left_items": left_items,
+                "right_items": shuffled_rights,
+                "correct_pairs": correct_pairs,
+                "explanation": expl,
+            })
+
+        elif exercise_type == "long_answer":
+            question_text = content.get("question") or exercise_prompt or title
+            correct_answer = content.get("correct_answer", "")
+            keywords = content.get("keywords", [])
+            questions.append({
+                "id": ex_id,
+                "type": "long_answer",
+                "question": question_text,
+                "input_type": "long_answer",
+                "correct_answer": correct_answer,
+                "keywords": keywords,
                 "explanation": expl,
             })
 
@@ -153,6 +218,7 @@ async def submit_diagnostic(
 
     correct_count = 0
     total_count = len(test_data.answers)
+    question_results = []  # (exercise_id, is_correct)
 
     for answer in test_data.answers:
         cursor.execute("""
@@ -181,10 +247,40 @@ async def submit_diagnostic(
                 expected = content.get("correct_answer", "").strip().lower()
                 alternatives = [a.strip().lower() for a in content.get("alternative_answers", [])]
                 correct = student_text == expected or student_text in alternatives
+            elif exercise_type == "drag_drop":
+                correct_items = content.get("items", [])
+                try:
+                    student_items = json.loads(answer.text_answer or "[]")
+                    correct = student_items == correct_items
+                except (json.JSONDecodeError, ValueError):
+                    correct = False
+            elif exercise_type == "match_lines":
+                pairs = content.get("pairs", [])
+                correct_rights = [p[1] for p in pairs]
+                try:
+                    student_rights = json.loads(answer.text_answer or "[]")
+                    correct = student_rights == correct_rights
+                except (json.JSONDecodeError, ValueError):
+                    correct = False
+            elif exercise_type == "long_answer":
+                student_text = (answer.text_answer or "").strip().lower()
+                correct_answer = content.get("correct_answer", "").strip().lower()
+                keywords = [k.strip().lower() for k in content.get("keywords", []) if k.strip()]
+                if keywords:
+                    matched = sum(1 for kw in keywords if kw in student_text)
+                    correct = matched >= max(1, len(keywords) * 0.5)
+                else:
+                    words = [w for w in correct_answer.split() if len(w) >= 4]
+                    if words:
+                        matched = sum(1 for w in words if w in student_text)
+                        correct = matched >= max(1, len(words) * 0.5)
+                    else:
+                        correct = bool(student_text) and student_text == correct_answer
             else:
                 correct = False
             if correct:
                 correct_count += 1
+            question_results.append((answer.question_id, 1 if correct else 0))
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -196,6 +292,12 @@ async def submit_diagnostic(
         VALUES (?, ?, ?, ?)
     """, (student_id, concept_id, score,
           json.dumps([a.dict() for a in test_data.answers])))
+    attempt_id = cursor.lastrowid
+    for ex_id, is_correct in question_results:
+        cursor.execute("""
+            INSERT INTO diagnostic_question_results (attempt_id, exercise_id, is_correct)
+            VALUES (?, ?, ?)
+        """, (attempt_id, ex_id, is_correct))
 
     cursor.execute("""
         INSERT OR REPLACE INTO mastery_state
@@ -280,6 +382,7 @@ async def submit_sequence_diagnostic(
         concept_name = concept[0]
         correct_count = 0
         total_count = len(answers)
+        question_results = []
 
         for answer in answers:
             cursor.execute("""
@@ -308,10 +411,40 @@ async def submit_sequence_diagnostic(
                     expected = content.get("correct_answer", "").strip().lower()
                     alternatives = [a.strip().lower() for a in content.get("alternative_answers", [])]
                     correct = student_text == expected or student_text in alternatives
+                elif exercise_type == "drag_drop":
+                    correct_items = content.get("items", [])
+                    try:
+                        student_items = json.loads(answer.text_answer or "[]")
+                        correct = student_items == correct_items
+                    except (json.JSONDecodeError, ValueError):
+                        correct = False
+                elif exercise_type == "match_lines":
+                    pairs = content.get("pairs", [])
+                    correct_rights = [p[1] for p in pairs]
+                    try:
+                        student_rights = json.loads(answer.text_answer or "[]")
+                        correct = student_rights == correct_rights
+                    except (json.JSONDecodeError, ValueError):
+                        correct = False
+                elif exercise_type == "long_answer":
+                    student_text = (answer.text_answer or "").strip().lower()
+                    correct_answer = content.get("correct_answer", "").strip().lower()
+                    keywords = [k.strip().lower() for k in content.get("keywords", []) if k.strip()]
+                    if keywords:
+                        matched = sum(1 for kw in keywords if kw in student_text)
+                        correct = matched >= max(1, len(keywords) * 0.5)
+                    else:
+                        words = [w for w in correct_answer.split() if len(w) >= 4]
+                        if words:
+                            matched = sum(1 for w in words if w in student_text)
+                            correct = matched >= max(1, len(words) * 0.5)
+                        else:
+                            correct = bool(student_text) and student_text == correct_answer
                 else:
                     correct = False
                 if correct:
                     correct_count += 1
+                question_results.append((answer.question_id, 1 if correct else 0))
             except (json.JSONDecodeError, TypeError):
                 pass
 
@@ -323,8 +456,15 @@ async def submit_sequence_diagnostic(
             VALUES (?, ?, ?, ?)
         """, (student_id, concept_id, score,
               json.dumps([{"question_id": a.question_id,
-                           "selected_index": a.selected_index}
+                           "selected_index": a.selected_index,
+                           "text_answer": getattr(a, "text_answer", None)}
                           for a in answers])))
+        seq_attempt_id = cursor.lastrowid
+        for ex_id, is_correct in question_results:
+            cursor.execute("""
+                INSERT INTO diagnostic_question_results (attempt_id, exercise_id, is_correct)
+                VALUES (?, ?, ?)
+            """, (seq_attempt_id, ex_id, is_correct))
 
         cursor.execute("""
             INSERT OR REPLACE INTO mastery_state
@@ -343,3 +483,84 @@ async def submit_sequence_diagnostic(
     conn.close()
 
     return results if results else [{"message": "No valid concept answers found"}]
+
+
+@router.get("/history/{concept_id}")
+async def get_concept_diagnostic_history(
+    concept_id: int,
+    authorization: Optional[str] = Header(None)
+):
+    """All past diagnostic attempt scores for one concept, ordered chronologically."""
+    student_id = get_current_student(authorization)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT score, created_at
+        FROM diagnostic_attempts
+        WHERE student_id = ? AND concept_id = ?
+        ORDER BY created_at ASC
+    """, (student_id, concept_id))
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {"attempt_num": i + 1, "score": round(float(r[0]), 1), "date": r[1]}
+        for i, r in enumerate(rows)
+    ]
+
+
+@router.get("/sequence-history/{sequence_id}")
+async def get_sequence_diagnostic_history(
+    sequence_id: int,
+    authorization: Optional[str] = Header(None)
+):
+    """Session-level history for a full sequence: per session = mean score across all concepts."""
+    student_id = get_current_student(authorization)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT id, name FROM concepts WHERE sequence_id = ? ORDER BY id",
+        (sequence_id,)
+    )
+    concepts = cursor.fetchall()
+
+    if not concepts:
+        conn.close()
+        return []
+
+    concept_histories: dict = {}
+    for cid, cname in concepts:
+        cursor.execute("""
+            SELECT score, created_at FROM diagnostic_attempts
+            WHERE student_id = ? AND concept_id = ?
+            ORDER BY created_at ASC
+        """, (student_id, cid))
+        concept_histories[cname] = [float(r[0]) for r in cursor.fetchall()]
+
+    conn.close()
+
+    max_attempts = max((len(v) for v in concept_histories.values()), default=0)
+    if max_attempts == 0:
+        return []
+
+    result = []
+    for att_num in range(1, max_attempts + 1):
+        session_scores = []
+        per_concept = []
+        for cname, scores in concept_histories.items():
+            if len(scores) >= att_num:
+                sc = scores[att_num - 1]
+                session_scores.append(sc)
+                per_concept.append({"concept_name": cname, "score": round(sc, 1)})
+        if session_scores:
+            overall = round(sum(session_scores) / len(session_scores), 1)
+            result.append({
+                "attempt_num": att_num,
+                "overall": overall,
+                "per_concept": per_concept
+            })
+
+    return result

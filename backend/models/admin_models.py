@@ -96,12 +96,14 @@ class AdminStudentCreate(BaseModel):
     email: str
     password: str
     role: RoleEnum = RoleEnum.STUDENT
+    classe: Optional[str] = None
 
 class AdminStudentUpdate(BaseModel):
     email: Optional[str] = None
     username: Optional[str] = None
     is_active: Optional[bool] = None
     role: Optional[RoleEnum] = None
+    classe: Optional[str] = None
 
 class AdminPasswordReset(BaseModel):
     new_password: str
@@ -114,6 +116,7 @@ class AdminStudentResponse(BaseModel):
     role: str
     is_active: bool
     created_at: str
+    classe: Optional[str] = None
     total_exercises_completed: int = 0
     average_mastery: float = 0.0
 
