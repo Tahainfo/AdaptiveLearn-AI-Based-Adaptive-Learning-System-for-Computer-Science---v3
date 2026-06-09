@@ -1,437 +1,317 @@
-<<<<<<< HEAD
-# 🎓 Adaptive Learning System for Moroccan High School Students
+<div align="center">
 
-An AI-powered intelligent learning platform that adapts to student mastery levels and provides personalized exercises for **Algorithmics** and **Networks** education.
+<!-- Optional: replace with your own banner -> docs/banner.png -->
+<img src="docs/banner.png" alt="AdaptiveLearn" width="100%"/>
 
-## 🌟 Features
+# AdaptiveLearn
 
-- **Diagnostic Tests**: Assess student knowledge across concepts
-- **Adaptive Exercises**: AI-generated exercises that match student proficiency
-- **Error Detection**: Classify mistakes (conceptual, procedural, careless)
-- **Mastery Tracking**: Dynamic mastery profiles updated after each exercise
-- **Smart Recommendations**: Suggests what students should learn next
-- **Progress Dashboard**: Visualize learning progress across concepts
-- **Multi-level Hints**: Progressive hints to guide without spoiling solutions
-- **Claude Haiku Integration**: Uses Claude Haiku 4.5 API for intelligent content generation
+### AI-Powered Adaptive Learning System for Computer Science Education
 
-## 🏗 Architecture
+*Turning every student's mistake into a personalized learning opportunity.*
 
-```
-├── backend/
-│   ├── main.py                 # FastAPI application
-│   ├── routes/
-│   │   ├── auth.py            # Authentication routes
-│   │   ├── diagnostic.py       # Diagnostic test routes
-│   │   ├── exercise.py         # Exercise delivery routes
-│   │   └── analytics.py        # Dashboard & analytics routes
-│   ├── services/
-│   │   ├── student_model.py    # Mastery tracking & student profiles
-│   │   ├── error_analyzer.py   # Error classification system
-│   │   ├── ai_engine.py        # Claude API integration
-│   │   └── recommendation.py   # Learning path recommendations
-│   ├── models/
-│   │   └── database_models.py  # Pydantic models for API validation
-│   ├── database/
-│   │   └── db.py              # Database initialization & schema
-│   └── utils/
-│       ├── prompts.py         # AI prompts & diagnostic questions
-│       └── auth.py            # Authentication utilities
-│
-├── frontend/
-│   ├── index.html             # Main HTML page
-│   ├── css/
-│   │   └── style.css          # Styling
-│   └── js/
-│       ├── config.js          # Configuration
-│       ├── api.js             # API communication
-│       └── app.js             # Application logic
-│
-├── requirements.txt           # Python dependencies
-├── .env.example              # Environment configuration template
-└── README.md                 # This file
-```
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"/>
+  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript"/>
+  <img src="https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white" alt="Pydantic"/>
+  <img src="https://img.shields.io/badge/OpenRouter-6566F1?style=for-the-badge&logo=openai&logoColor=white" alt="OpenRouter"/>
+</p>
 
-## 📦 Technology Stack
+<p align="center">
+  <img src="https://img.shields.io/badge/license-MIT-success?style=flat-square" alt="License"/>
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs Welcome"/>
+  <img src="https://img.shields.io/badge/status-active-success?style=flat-square" alt="Status"/>
+  <img src="https://img.shields.io/badge/Made%20in-Morocco-C1272D?style=flat-square" alt="Made in Morocco"/>
+</p>
 
-| Component | Technology |
-|-----------|-----------|
-| Backend | FastAPI (Python) |
-| Frontend | HTML5, CSS3, JavaScript (Vanilla) |
-| Database | SQLite |
-| AI | Claude Haiku 4.5 API |
-| Server | Uvicorn |
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.8+
-- pip (Python package manager)
-- Claude API key (free tier available at https://console.anthropic.com)
-
-### Installation Steps
-
-#### 1. Clone/Extract the Project
-```bash
-cd "c:\Users\ISMAILI TAHA\Desktop\CRMEF\SEMESTRE 2\Projet personnel"
-```
-
-#### 2. Create Python Virtual Environment
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-#### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-#### 4. Configure Environment
-```bash
-# Copy the example env file
-copy .env.example .env
-
-# Edit .env and add your Claude API key
-# (Open .env with your text editor and fill in ANTHROPIC_API_KEY)
-```
-
-#### 5. Initialize Database
-```bash
-python backend/database/db.py
-```
-
-This creates the SQLite database and inserts default concepts for Algorithmics and Networks.
-
-#### 6. Start the Backend Server
-```bash
-python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-The API will be available at: **http://localhost:8000**
-
-#### 7. Open Frontend in Browser
-```
-http://localhost:8000
-```
-
-Or if you prefer to serve the frontend separately, open `frontend/index.html` in a web browser.
-
-## 📚 How It Works
-
-### 1. Student Registration & Login
-- Students register with username, email, password
-- Login generates JWT token for subsequent requests
-
-### 2. Diagnostic Test
-- Student takes a diagnostic test for selected concept
-- System evaluates understanding (0-100%)
-- Initial mastery level is set based on score
-
-### 3. Exercise Generation
-- System determines student's weakest concept
-- Based on mastery profile and mistake patterns
-- Claude API generates targeted exercise for difficulty level
-- Student receives: exercise prompt, 3-level hints, solution, explanation
-
-### 4. Answer Submission & Feedback
-- Student submits pseudocode or solution
-- Error analyzer classifies mistake type:
-  - **Conceptual**: Misunderstands the concept
-  - **Procedural**: Wrong steps but knows concept
-  - **Careless**: Simple arithmetic/syntax error
-- Mastery is updated using Bayesian approach
-- Student receives targeted feedback
-
-### 5. Progress Tracking
-- Mastery profile continuously updated
-- Performance analytics show:
-  - Overall mastery percentage
-  - Progress by domain (Algorithmics/Networks)
-  - Error pattern analysis
-  - Daily activity statistics
-
-### 6. Smart Recommendations
-- Recommends next learning action based on:
-  - Weakest areas (mastery < 40%)
-  - Concepts not yet attempted
-  - Domain-specific learning paths
-  - Student readiness to advance
-
-## 🎯 Concepts Covered
-
-### Algorithmics
-- **Loops - For**: Iteration with fixed count
-- **Loops - While**: Iteration with condition
-- **Conditionals - If/Else**: Decision making
-- **Arrays/Lists**: Data structure manipulation
-- **Pseudocode**: Algorithm description language
-
-### Networks
-- **IP Addressing**: IPv4 address structure (192.168.1.1)
-- **Subnetting**: Network segmentation (CIDR notation)
-- **OSI Model**: 7-layer network model
-- **Protocol Basics**: TCP, UDP, packet structure
-
-## 🔌 API Endpoints
-
-### Authentication
-- `POST /auth/register` - Register new student
-- `POST /auth/login` - Login and get token
-- `POST /auth/logout` - Logout
-
-### Diagnostic
-- `GET /diagnostic/concepts` - List all concepts
-- `GET /diagnostic/questions/{concept_id}` - Get questions for concept
-- `POST /diagnostic/submit/{concept_id}` - Submit test answers
-- `GET /diagnostic/results/{concept_id}` - Get previous results
-
-### Exercise
-- `GET /exercise/next` - Get next recommended exercise
-- `POST /exercise/submit` - Submit answer to exercise
-- `GET /exercise/hint/{exercise_id}` - Get hint for exercise
-- `GET /exercise/stats` - Get exercise statistics
-
-### Analytics
-- `GET /analytics/dashboard` - Full dashboard data
-- `GET /analytics/progress` - Progress by domain
-- `GET /analytics/recommendations` - Learning recommendations
-- `GET /analytics/proficiency-by-concept` - Mastery distribution
-- `GET /analytics/learning-analytics` - Detailed analytics
-
-## 🧠 Core Intelligence Components
-
-### Student Model (`services/student_model.py`)
-- Tracks mastery level (0.0 to 1.0) for each concept
-- Calculates difficulty level based on mastery:
-  - Easy: mastery < 0.4
-  - Medium: 0.4 ≤ mastery < 0.7
-  - Challenging: mastery ≥ 0.7
-- Updates mastery using weighted average approach
-
-### Error Analyzer (`services/error_analyzer.py`)
-- Classifies student errors into 3 categories
-- Pattern-specific analysis for each concept:
-  - Loops: checks for off-by-one, missing variables
-  - Conditionals: detects logic operator confusion
-  - Arrays: identifies indexing errors
-  - IP: validates format and subnet calculations
-- Maintains mistake log for pattern tracking
-
-### AI Engine (`services/ai_engine.py`)
-- Interfaces with Claude Haiku 4.5 API
-- Generates contextual exercises based on student profile
-- Creates hints at 3 difficulty levels
-- Analyzes student answers and provides feedback
-- Falls back to mock responses if API unavailable
-
-### Recommendation Engine (`services/recommendation.py`)
-- Determines optimal next learning action
-- Recommends study paths by domain
-- Decides when student is ready to advance
-- Analyzes overall progress and trends
-
-## 📊 Database Schema
-
-### students
-- id, username, email, password_hash, created_at, updated_at
-
-### concepts
-- id, name (e.g., "Loops - For"), domain, description
-
-### mastery_state
-- id, student_id, concept_id, mastery_level, attempts_count, correct_count, last_updated
-
-### exercise_attempts
-- id, student_id, exercise_id, student_answer, is_correct, error_type, time_spent_seconds, created_at
-
-### mistakes_log
-- id, student_id, concept_id, mistake_type, description, context, created_at
-
-### diagnostic_attempts
-- id, student_id, concept_id, score, answers, created_at
-
-### exercises
-- id, concept_id, title, description, difficulty, exercise_prompt, solution, explanation, created_at
-
-## 🤖 Claude API Integration
-
-### Request Format
-```json
-{
-  "concept_mastery": [
-    {"concept_name": "Loops - For", "mastery_level": 0.6, "attempts": 5, "correct": 3}
-  ],
-  "mistake_patterns": [
-    {"concept": "Loops - For", "mistake_type": "off-by-one", "frequency": 2}
-  ],
-  "weak_concept": "Loops - For",
-  "difficulty_level": "medium",
-  "goal": "generate targeted exercise"
-}
-```
-
-### Response Format
-```json
-{
-  "exercise": "Exercise description here...",
-  "hints": ["Basic hint", "Specific hint", "Almost answer hint"],
-  "solution": "Complete solution in pseudocode format",
-  "explanation": "Why this solution is correct and key concepts",
-  "difficulty": "medium"
-}
-```
-
-## 🔐 Security Notes
-
-- Passwords are hashed using SHA-256
-- Tokens expire after 24 hours
-- All API endpoints require authentication (except login/register)
-- Frontend validates user input before sending to backend
-- CORS configured to accept all origins (development only - restrict in production)
-
-## 🛠 Development
-
-### Running Tests
-```bash
-# Currently, manual testing recommended
-# API docs available at: http://localhost:8000/docs
-```
-
-### Database Management
-```bash
-# Reinitialize database
-python backend/database/db.py
-
-# View data (using sqlite3)
-sqlite3 data/adaptive_learning.db
-.tables
-SELECT * FROM students;
-```
-
-### Without Claude API
-The system will use mock responses if API key is not set. This allows full functionality for testing.
-
-## 📝 Example Request/Response
-
-### Register Student
-**Request:**
-```bash
-curl -X POST "http://localhost:8000/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "student1",
-    "email": "student1@example.com",
-    "password": "password123"
-  }'
-```
-
-**Response:**
-```json
-{
-  "id": 1,
-  "username": "student1",
-  "email": "student1@example.com",
-  "created_at": "2024-01-15T10:30:00"
-}
-```
-
-### Get Next Exercise
-**Request:**
-```bash
-curl -X GET "http://localhost:8000/exercise/next" \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-**Response:**
-```json
-{
-  "exercise_id": 42,
-  "concept_id": 1,
-  "concept_name": "Loops - For",
-  "difficulty": "medium",
-  "exercise": "Write a pseudocode loop that iterates 5 times...",
-  "hints": ["Think about how to count", "Use a counter variable", "Counter goes 1 to 5"],
-  "recommendation": {
-    "action": "practice_exercise",
-    "priority": "high"
-  }
-}
-```
-
-### Submit Exercise Answer
-**Request:**
-```bash
-curl -X POST "http://localhost:8000/exercise/submit" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "exercise_id": 42,
-    "student_answer": "FOR i = 1 TO 5\n    PRINT i\nEND FOR"
-  }'
-```
-
-**Response:**
-```json
-{
-  "is_correct": true,
-  "error_type": null,
-  "feedback": "Perfect! Your loop correctly iterates 5 times.",
-  "new_mastery": 0.65,
-  "hint": "Great work!"
-}
-```
-
-## 🎨 Frontend Features
-
-- **Responsive Design**: Works on desktop and mobile
-- **Real-time Feedback**: Instant exercise evaluation
-- **Progress Visualization**: Mastery bars and statistics
-- **Hint System**: Progressive hints without spoilers
-- **Dashboard**: Complete learning overview
-- **Diagnostic Interface**: Easy concept selection and testing
-
-## 🚧 Future Enhancements
-
-- [ ] Dark mode support
-- [ ] Export progress reports (PDF)
-- [ ] Leaderboards and competitions
-- [ ] Collaborative exercises
-- [ ] More concepts and languages
-- [ ] Video tutorials
-- [ ] Mobile native app
-- [ ] Real-time collaborative features
-- [ ] Teacher dashboard
-- [ ] Advanced analytics and insights
-
-## 📄 License
-
-This project is developed for educational purposes.
-
-## 👥 Contributors
-
-- Developed as an adaptive learning system for Moroccan high school students
-
-## 📞 Support
-
-For issues, questions, or improvements:
-1. Check the API documentation at `/docs`
-2. Review error messages in browser console
-3. Check server logs for backend errors
-
-## 🙏 Acknowledgments
-
-- Built with Claude Haiku 4.5 API
-- FastAPI framework
-- Moroccan educational curriculum
+</div>
 
 ---
 
-**Happy Learning! 🚀**
-=======
-# AdaptiveLearn-AI-Based-Adaptive-Learning-System-for-Computer-Science
-AdaptiveLearn is an intelligent educational platform designed to personalize learning in computer science for high school students.  The system combines diagnostic assessment, mistake analysis, and AI-generated exercises to adapt learning paths based on each student’s level and weaknesses.
+## Overview
+
+**AdaptiveLearn** is a full-stack web platform that brings **personalized, AI-driven learning** to computer science education in the Moroccan qualifying secondary school (*Tronc Commun Sciences — TCS*).
+
+It was born from a real classroom problem observed during teaching practice: in classes of **30–35 students** with widely heterogeneous levels, teachers cannot provide individual feedback or differentiated remediation to everyone. AdaptiveLearn solves this by letting each student **self-assess**, receive an **AI-generated personalized report**, and practice **corrective exercises targeted at their own mistakes** — anonymously, without fear of judgment.
+
+The platform is grounded in two pedagogical principles:
+
+- **Pedagogy of Error** *(Astolfi, 1997)* — the error is treated as a learning tool, not a fault to punish.
+- **Differentiated Instruction** — content, pace, and feedback adapt to each learner's needs.
+
+> **Field result:** in the pilot class (TCS1, 30 students), average mastery rose by **+22.8 percentage points** (66.1% → 88.9%) across three diagnostic attempts.
+
+---
+
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Screenshots](#screenshots)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [AI Engine](#ai-engine)
+- [Getting Started](#getting-started)
+- [User Roles](#user-roles)
+- [Project Structure](#project-structure)
+- [Results & Validation](#results--validation)
+- [Roadmap](#roadmap)
+- [Author](#author)
+- [License](#license)
+
+---
+
+## Key Features
+
+| Feature | Description |
+|---|---|
+| **AI Personalized Reports** | After each diagnostic test, an LLM generates a structured report: strengths, gaps by concept, key lessons, and a 3–5 step action plan. |
+| **Targeted Corrective Exercises** | The AI auto-generates MCQs based on the exact questions a student got wrong. |
+| **Answer Explanations** | Students can request a clear explanation for any incorrect answer. |
+| **Mastery Tracking** | A mastery level (0–1) is computed and stored per student, per concept, updated after every attempt. |
+| **6 Question Types** | MCQ, True/False, Short Answer, Reordering, Matching, and Long Answer (keyword-based scoring). |
+| **Gamification** | Badges unlocked at ≥ 90% mastery and downloadable PDF certificates per sequence. |
+| **Full TCS Curriculum** | 4 modules, 12 pedagogical sequences, and 40+ concepts aligned with the official program. |
+| **Bilingual Interface** | Built-in internationalization (French / English). |
+| **Secure Auth & Roles** | Bearer-token authentication with RBAC (`student` / `admin`) and bcrypt password hashing. |
+| **Teacher Analytics** | Dashboards with stats by class, sequence, and attempt; per-student progress and an audit log. |
+
+---
+
+## Screenshots
+
+> To add your images: create a `docs/screenshots/` folder in the repo and drop the images with the names below. They'll appear automatically.
+
+<div align="center">
+
+**Authentication**
+
+<img src="docs/screenshots/login.png" alt="Login and registration interface" width="80%"/>
+
+<br/><br/>
+
+**Student Dashboard** — progress by module and sequence, badges, and AI recommendations
+
+<img src="docs/screenshots/student-dashboard.png" alt="Student dashboard" width="80%"/>
+
+<br/><br/>
+
+**Diagnostic Test** — multi-type questions with a progress bar and instant feedback
+
+<img src="docs/screenshots/diagnostic-test.png" alt="Diagnostic test interface" width="80%"/>
+
+<br/><br/>
+
+**AI Pedagogical Report** — personalized post-test analysis with corrective exercises
+
+<img src="docs/screenshots/ai-report.png" alt="AI generated pedagogical report" width="80%"/>
+
+<br/><br/>
+
+**Admin Analytics Dashboard** — per-class, per-sequence, and per-attempt statistics
+
+<img src="docs/screenshots/admin-dashboard.png" alt="Admin analytics dashboard" width="80%"/>
+
+</div>
+
+---
+
+## Tech Stack
+
+<div align="center">
+
+<img src="https://skillicons.dev/icons?i=py,fastapi,sqlite,js,html,css,git,github,vscode" alt="Tech stack logos"/>
+
+</div>
+
+<div align="center">
+
+| Layer | Technologies |
+|---|---|
+| **Backend** | Python · FastAPI · Uvicorn (ASGI) |
+| **Database** | SQLite (13 tables) |
+| **Validation** | Pydantic v2 |
+| **Security** | Bearer Token Auth · bcrypt · RBAC |
+| **Frontend** | HTML5 · CSS3 · Vanilla JavaScript (SPA) · i18n (fr/en) |
+| **AI / LLM** | OpenRouter — Nemotron-120B · GPT-OSS-20B · Gemma-4-31B |
+| **Tooling** | Git · GitHub · Visual Studio Code |
+
+</div>
+
+---
+
+## Architecture
+
+AdaptiveLearn follows a classic **three-tier architecture**:
+
+<div align="center">
+
+<img src="docs/architecture.png" alt="AdaptiveLearn three-tier architecture diagram" width="80%"/>
+
+</div>
+
+---
+
+## AI Engine
+
+The AI engine powers three features through the **OpenRouter** unified API, with an automatic **model-cascade fallback** that guarantees continuity when a free model hits a rate limit (`HTTP 429`):
+
+```
+nvidia/nemotron-120b:free
+        └─▶ openai/gpt-oss-20b:free
+                └─▶ google/gemma-4-31b-it:free
+                        └─▶ openrouter/auto
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /ai/explain` | Explains why a given answer is correct. |
+| `POST /ai/learning-guide` | Generates the personalized pedagogical report. |
+| `POST /ai/corrective-exercises` | Builds targeted MCQs from the student's mistakes. |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-API%20key-6566F1?logo=openai&logoColor=white)
+
+- Python 3.10+
+- An [OpenRouter](https://openrouter.ai) API key (free tier works)
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Tahainfo/AdaptiveLearn-AI-Based-Adaptive-Learning-System-for-Computer-Science---v3.git
+cd AdaptiveLearn-AI-Based-Adaptive-Learning-System-for-Computer-Science---v3
+
+# 2. (Recommended) create a virtual environment
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# macOS / Linux:
+source venv/bin/activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+```
+
+### Environment variables
+
+Create a `.env` file in the project root:
+
+```env
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+```
+
+> **Never commit your `.env`** — make sure it's listed in `.gitignore`.
+
+### Run the app
+
+```bash
+uvicorn main:app --reload
+```
+
+Then open **http://127.0.0.1:8000** in your browser.
+
+> Adjust `main:app` and `requirements.txt` to match your actual entry-point file and dependencies if they differ.
+
+---
+
+## User Roles
+
+<div align="center">
+
+| Student | Teacher (Admin) |
+|---|---|
+| Register / log in | Manage student accounts |
+| Take diagnostic tests | Create & edit diagnostic exercises |
+| Read the AI report | View class & per-student analytics |
+| Practice corrective exercises | Track mastery by concept and attempt |
+| Track progress & earn badges | Consult the audit log |
+
+</div>
+
+---
+
+## Project Structure
+
+```
+AdaptiveLearn/
+├── backend/            # FastAPI app, routes, AI services, auth
+├── frontend/           # SPA — HTML / CSS / JavaScript, i18n
+├── database/           # SQLite schema & seed data
+├── docs/               # Screenshots, banner, documentation
+├── .env                # API keys (not committed)
+├── requirements.txt
+└── README.md
+```
+> Adapt this tree to your real folder names.
+
+---
+
+## Results & Validation
+
+The system was validated on the **TCS1** pilot class (**30 students**, 3 attempts per concept):
+
+<div align="center">
+
+| Class | Students | Attempt 1 | Attempt 2 | Attempt 3 | Gain |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| **TCS1** | 30 | 66.1% | 80.7% | 88.9% | **+22.8 pts** |
+
+</div>
+
+This progression validates the core learning loop:
+
+```
+Diagnose  →  Adaptive Exercises  →  Re-assess
+```
+
+---
+
+## Roadmap
+
+- [ ] Cloud deployment for live classroom use
+- [ ] Pilot testing in a real classroom with data collection
+- [ ] Mobile version (PWA)
+- [ ] Extension to other subjects (Math, Physics-Chemistry, Life Sciences)
+- [ ] Deep Knowledge Tracing (LSTM-based mastery modeling)
+- [ ] Computerized Adaptive Testing (Item Response Theory)
+- [ ] Parent progress dashboard
+- [ ] LMS integration (Moodle / Google Classroom via SCORM / xAPI)
+- [ ] Migration from SQLite to PostgreSQL for production
+
+---
+
+## Author
+
+**ISMAILI Taha**
+Personal Supervised Project (PPE) — CRMEF Casablanca-Settat
+Supervised by **Mme. BAZI Kaoutar**
+2025 / 2026
+
+---
+
+## License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgments
+
+- **CRMEF Casablanca-Settat** for the training and pedagogical guidance.
+- The teachers and students of the qualifying high schools who took part in the field observations.
+- Pedagogical foundations: *Astolfi (1997)*, *Bloom (1984)*, *Black & Wiliam (1998)*, *Vygotsky (1978)*, *Bruner (1966)*.
+
+<div align="center">
+
+---
+
+**If you find this project useful, consider giving it a star.**
+
+</div>
