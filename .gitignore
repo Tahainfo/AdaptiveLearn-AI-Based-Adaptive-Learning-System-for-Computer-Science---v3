@@ -11,8 +11,8 @@ build/
 .env
 
 # Database
-data/*.db
-*.db
+# data/*.db
+# *.db
 
 # Virtual environments
 .venv/
