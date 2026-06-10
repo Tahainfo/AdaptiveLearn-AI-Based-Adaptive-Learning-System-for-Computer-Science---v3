@@ -93,10 +93,46 @@
             box-shadow: 0 1px 4px rgba(0,0,0,0.10);
         }
 
-        /* ── Form ── */
-        .form-group {
-            margin-bottom: 1rem;
+        /* ── Tab switcher (Connexion / Inscription) — student only ── */
+        .auth-tabs {
+            display: none; /* shown via JS when student role is active */
+            gap: 0;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 1.5rem;
         }
+        .auth-tabs.visible { display: flex; }
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            padding: 0.6rem 0;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #94a3b8;
+            cursor: pointer;
+            position: relative;
+            transition: color 160ms ease;
+        }
+        .tab-btn::after {
+            content: '';
+            position: absolute;
+            bottom: -2px; left: 0; right: 0;
+            height: 2px;
+            background: #2563eb;
+            border-radius: 2px 2px 0 0;
+            transform: scaleX(0);
+            transition: transform 200ms ease;
+        }
+        .tab-btn.active { color: #2563eb; }
+        .tab-btn.active::after { transform: scaleX(1); }
+
+        /* ── Form panels ── */
+        .form-panel { display: none; }
+        .form-panel.active { display: block; }
+
+        /* ── Form fields ── */
+        .form-group { margin-bottom: 1rem; }
         label {
             display: block;
             font-size: 0.8125rem;
@@ -105,6 +141,7 @@
             margin-bottom: 0.35rem;
         }
         input[type="text"],
+        input[type="email"],
         input[type="password"] {
             width: 100%;
             padding: 0.65rem 0.875rem;
@@ -123,8 +160,8 @@
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
         }
 
-        /* ── Submit Button ── */
-        .btn-login {
+        /* ── Buttons ── */
+        .btn-primary {
             width: 100%;
             padding: 0.75rem 1rem;
             background: #2563eb;
@@ -142,10 +179,11 @@
             justify-content: center;
             gap: 0.5rem;
         }
-        .btn-login:hover { background: #1d4ed8; box-shadow: 0 4px 14px rgba(37,99,235,0.25); }
-        .btn-login:active { transform: scale(0.98); }
-        .btn-login:disabled { background: #93c5fd; cursor: not-allowed; transform: none; box-shadow: none; }
-        .btn-login .spinner {
+        .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 14px rgba(37,99,235,0.25); }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .spinner {
             width: 16px; height: 16px;
             border: 2px solid rgba(255,255,255,0.4);
             border-top-color: white;
@@ -153,10 +191,27 @@
             animation: spin 0.7s linear infinite;
             display: none;
         }
-        .btn-login.loading .spinner { display: block; }
-        .btn-login.loading .btn-text { display: none; }
+        .btn-primary.loading .spinner { display: block; }
+        .btn-primary.loading .btn-text { display: none; }
 
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Success banner ── */
+        .success-msg {
+            display: none;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #15803d;
+            border-radius: 8px;
+            padding: 0.6rem 0.875rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            margin-top: 0.75rem;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .success-msg.visible { display: flex; }
+        .success-msg svg { flex-shrink: 0; width: 14px; height: 14px; }
 
         /* ── Error ── */
         .error-msg {
@@ -172,9 +227,7 @@
             align-items: center;
             gap: 0.4rem;
         }
-        .error-msg.visible {
-            display: flex;
-        }
+        .error-msg.visible { display: flex; }
         .error-msg svg { flex-shrink: 0; width: 14px; height: 14px; }
 
         /* ── Footer ── */
@@ -201,7 +254,7 @@
     <!-- Role Selector -->
     <div class="role-selector" role="group" aria-label="Sélectionner un rôle">
         <button class="role-btn active" id="roleStudent" onclick="selectRole('student')" type="button">
-            <svg viewBox="0 0 24 24"><path d="M12 2l10 5v6c0 5-4 9-10 11C6 22 2 18 2 13V7z"/><path d="M9 12l2 2 4-4"/></svg>
+            <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
             Étudiant
         </button>
         <button class="role-btn" id="roleAdmin" onclick="selectRole('admin')" type="button">
@@ -210,29 +263,63 @@
         </button>
     </div>
 
-    <!-- Login Form -->
-    <form id="loginForm" onsubmit="handleLogin(event)" novalidate>
-        <div class="form-group">
-            <label for="username">Nom d'utilisateur</label>
-            <input type="text" id="username" placeholder="Entrez votre identifiant" autocomplete="username" required>
-        </div>
-        <div class="form-group">
-            <label for="password">Mot de passe</label>
-            <input type="password" id="password" placeholder="Entrez votre mot de passe" autocomplete="current-password" required>
-        </div>
+    <!-- Tab switcher — only for student role -->
+    <div class="auth-tabs visible" id="authTabs">
+        <button class="tab-btn active" id="tabLogin" onclick="switchTab('login')" type="button">Se connecter</button>
+        <button class="tab-btn" id="tabRegister" onclick="switchTab('register')" type="button">S'inscrire</button>
+    </div>
 
-        <button type="submit" class="btn-login" id="submitBtn">
-            <span class="spinner"></span>
-            <span class="btn-text">Se connecter</span>
-        </button>
+    <!-- ── Login Panel ── -->
+    <div class="form-panel active" id="panelLogin">
+        <form onsubmit="handleLogin(event)" novalidate>
+            <div class="form-group">
+                <label for="loginUsername">Nom d'utilisateur</label>
+                <input type="text" id="loginUsername" placeholder="Entrez votre identifiant" autocomplete="username" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Mot de passe</label>
+                <input type="password" id="loginPassword" placeholder="Entrez votre mot de passe" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn-primary" id="loginBtn">
+                <span class="spinner"></span>
+                <span class="btn-text">Se connecter</span>
+            </button>
+            <div class="error-msg" id="loginError" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="loginErrorText"></span>
+            </div>
+        </form>
+    </div>
 
-        <div class="error-msg" id="errorMsg" role="alert">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <span id="errorText"></span>
-        </div>
-    </form>
+    <!-- ── Register Panel (student only) ── -->
+    <div class="form-panel" id="panelRegister">
+        <form onsubmit="handleRegister(event)" novalidate>
+            <div class="form-group">
+                <label for="regUsername">Nom d'utilisateur</label>
+                <input type="text" id="regUsername" placeholder="Choisissez un identifiant" autocomplete="username" required>
+            </div>
+            <div class="form-group">
+                <label for="regEmail">Adresse e-mail</label>
+                <input type="email" id="regEmail" placeholder="votre@email.com" autocomplete="email" required>
+            </div>
+            <div class="form-group">
+                <label for="regPassword">Mot de passe</label>
+                <input type="password" id="regPassword" placeholder="Minimum 6 caractères" autocomplete="new-password" required>
+            </div>
+            <button type="submit" class="btn-primary" id="registerBtn">
+                <span class="spinner"></span>
+                <span class="btn-text">Créer mon compte</span>
+            </button>
+            <div class="success-msg" id="registerSuccess" role="status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span id="registerSuccessText"></span>
+            </div>
+            <div class="error-msg" id="registerError" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="registerErrorText"></span>
+            </div>
+        </form>
+    </div>
 
     <p class="card-footer">AdaptiveLearn &copy; 2025</p>
 </div>
@@ -240,6 +327,7 @@
 <script>
     const API_BASE = window.location.origin;
     let selectedRole = 'student';
+    let activeTab = 'login';
 
     // If already authenticated, redirect immediately
     (function checkExistingSession() {
@@ -249,42 +337,76 @@
         if (token)      { window.location.replace('/index.html'); }
     })();
 
+    // ── Role switching ───────────────────────────────────────────────
+
     function selectRole(role) {
         selectedRole = role;
         document.getElementById('roleStudent').classList.toggle('active', role === 'student');
         document.getElementById('roleAdmin').classList.toggle('active', role === 'admin');
-        clearError();
+
+        const tabs = document.getElementById('authTabs');
+        if (role === 'student') {
+            tabs.classList.add('visible');
+        } else {
+            tabs.classList.remove('visible');
+            // Admin always goes to login panel
+            switchTab('login');
+        }
+        clearAll();
     }
 
-    function showError(msg) {
-        const el = document.getElementById('errorMsg');
-        document.getElementById('errorText').textContent = msg;
+    // ── Tab switching ────────────────────────────────────────────────
+
+    function switchTab(tab) {
+        activeTab = tab;
+        document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+        document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+        document.getElementById('panelLogin').classList.toggle('active', tab === 'login');
+        document.getElementById('panelRegister').classList.toggle('active', tab === 'register');
+        clearAll();
+    }
+
+    // ── Feedback helpers ─────────────────────────────────────────────
+
+    function clearAll() {
+        ['loginError', 'registerError', 'registerSuccess'].forEach(id => {
+            document.getElementById(id).classList.remove('visible');
+        });
+    }
+
+    function showError(id, msg) {
+        const el = document.getElementById(id);
+        el.querySelector('span:last-child').textContent = msg;
         el.classList.add('visible');
     }
 
-    function clearError() {
-        document.getElementById('errorMsg').classList.remove('visible');
+    function showSuccess(id, msg) {
+        const el = document.getElementById(id);
+        el.querySelector('span:last-child').textContent = msg;
+        el.classList.add('visible');
     }
 
-    function setLoading(on) {
-        const btn = document.getElementById('submitBtn');
+    function setLoading(btnId, on) {
+        const btn = document.getElementById(btnId);
         btn.classList.toggle('loading', on);
         btn.disabled = on;
     }
 
+    // ── Login ────────────────────────────────────────────────────────
+
     async function handleLogin(event) {
         event.preventDefault();
-        clearError();
+        clearAll();
 
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value.trim();
+        const username = document.getElementById('loginUsername').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
 
         if (!username || !password) {
-            showError('Veuillez remplir tous les champs.');
+            showError('loginError', 'Veuillez remplir tous les champs.');
             return;
         }
 
-        setLoading(true);
+        setLoading('loginBtn', true);
 
         try {
             const response = await fetch(`${API_BASE}/auth/login`, {
@@ -301,15 +423,13 @@
 
             const returnedRole = data.role;
 
-            // Role mismatch: student trying admin portal or vice versa
             if (selectedRole === 'admin' && returnedRole !== 'admin') {
                 throw new Error("Ce compte n'a pas les droits administrateur.");
             }
             if (selectedRole === 'student' && returnedRole === 'admin') {
-                throw new Error("Ce compte est un compte administrateur. Veuillez sélectionner le rôle Administrateur.");
+                throw new Error("Ce compte est administrateur. Sélectionnez le rôle Administrateur.");
             }
 
-            // Store credentials and redirect
             if (returnedRole === 'admin') {
                 localStorage.setItem('adminToken', data.access_token);
                 localStorage.removeItem('token');
@@ -323,9 +443,63 @@
             }
 
         } catch (err) {
-            showError(err.message || 'Une erreur est survenue.');
+            showError('loginError', err.message || 'Une erreur est survenue.');
         } finally {
-            setLoading(false);
+            setLoading('loginBtn', false);
+        }
+    }
+
+    // ── Register ─────────────────────────────────────────────────────
+
+    async function handleRegister(event) {
+        event.preventDefault();
+        clearAll();
+
+        const username = document.getElementById('regUsername').value.trim();
+        const email    = document.getElementById('regEmail').value.trim();
+        const password = document.getElementById('regPassword').value.trim();
+
+        if (!username || !email || !password) {
+            showError('registerError', 'Veuillez remplir tous les champs.');
+            return;
+        }
+        if (password.length < 6) {
+            showError('registerError', 'Le mot de passe doit contenir au moins 6 caractères.');
+            return;
+        }
+
+        setLoading('registerBtn', true);
+
+        try {
+            const response = await fetch(`${API_BASE}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || "L'inscription a échoué.");
+            }
+
+            // Clear fields and switch to login with success notice
+            document.getElementById('regUsername').value = '';
+            document.getElementById('regEmail').value = '';
+            document.getElementById('regPassword').value = '';
+
+            showSuccess('registerSuccess', 'Compte créé ! Vous pouvez maintenant vous connecter.');
+
+            setTimeout(() => {
+                switchTab('login');
+                document.getElementById('loginUsername').value = username;
+                document.getElementById('loginUsername').focus();
+            }, 1800);
+
+        } catch (err) {
+            showError('registerError', err.message || 'Une erreur est survenue.');
+        } finally {
+            setLoading('registerBtn', false);
         }
     }
 </script>
