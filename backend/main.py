@@ -88,8 +88,8 @@ if os.path.exists(frontend_dir):
 
 @app.get("/")
 async def serve_index():
-    index = os.path.join(frontend_dir, "index.html")
-    return FileResponse(index)
+    login = os.path.join(frontend_dir, "login.html")
+    return FileResponse(login)
 
 @app.get("/{full_path:path}")
 async def catch_all(full_path: str):

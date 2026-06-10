@@ -26,9 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function checkAdminAuthentication() {
     if (!adminAPI.token) {
-        // Show login page
-        document.getElementById('loginPage').style.display = 'flex';
-        document.getElementById('dashboardArea').style.display = 'none';
+        window.location.replace('/login.html');
     } else {
         // Show dashboard
         document.getElementById('loginPage').style.display = 'none';
@@ -69,10 +67,7 @@ async function handleAdminLogin(event) {
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
         adminAPI.logout();
-        document.getElementById('loginPage').style.display = 'flex';
-        document.getElementById('dashboardArea').style.display = 'none';
-        document.getElementById('adminUsername').value = '';
-        document.getElementById('adminPassword').value = '';
+        window.location.replace('/login.html');
     }
 }
 

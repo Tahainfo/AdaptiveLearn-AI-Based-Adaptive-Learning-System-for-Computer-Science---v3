@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showPage('dashboard');
         loadDashboard();
     } else {
-        showPage('login');
+        window.location.replace('/login.html');
     }
 });
 
@@ -133,8 +133,7 @@ async function handleRegister() {
 function logout() {
     if (confirm(t('auth.logout_confirm'))) {
         api.logout();
-        showPage('login');
-        showLogin();
+        window.location.replace('/login.html');
     }
 }
 

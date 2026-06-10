@@ -31,6 +31,7 @@ class API {
             if (!response.ok) {
                 if (response.status === 401) {
                     this.logout();
+                    window.location.replace('/login.html');
                 }
                 const error = await response.json().catch(() => ({}));
                 throw new Error(error.detail || `HTTP ${response.status}`);
