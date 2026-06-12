@@ -53,7 +53,7 @@ async def get_diagnostic_questions_for_concept(
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT name FROM concepts WHERE id = ?", (concept_id,))
+    cursor.execute("SELECT name FROM concepts WHERE id = %s", (concept_id,))
     concept = cursor.fetchone()
     if not concept:
         conn.close()
@@ -62,7 +62,7 @@ async def get_diagnostic_questions_for_concept(
     cursor.execute("""
         SELECT id, title, exercise_prompt, exercise_type, content_json, explanation
         FROM exercises
-        WHERE concept_id            = ?
+        WHERE concept_id            = %s
           AND is_diagnostic         = 1
           AND is_active             = 1
           AND created_by_admin_id IS NOT NULL
@@ -204,7 +204,7 @@ async def submit_diagnostic(
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT name FROM concepts WHERE id = ?", (concept_id,))
+    cursor.execute("SELECT name FROM concepts WHERE id = %s", (concept_id,))
     concept = cursor.fetchone()
     if not concept:
         conn.close()
@@ -223,8 +223,8 @@ async def submit_diagnostic(
     for answer in test_data.answers:
         cursor.execute("""
             SELECT exercise_type, content_json FROM exercises
-            WHERE id                   = ?
-              AND concept_id           = ?
+            WHERE id                   = %s
+              AND concept_id           = %s
               AND is_diagnostic        = 1
               AND created_by_admin_id IS NOT NULL
         """, (answer.question_id, concept_id))
@@ -289,20 +289,25 @@ async def submit_diagnostic(
 
     cursor.execute("""
         INSERT INTO diagnostic_attempts (student_id, concept_id, score, answers)
-        VALUES (?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
     """, (student_id, concept_id, score,
           json.dumps([a.dict() for a in test_data.answers])))
-    attempt_id = cursor.lastrowid
+    attempt_id = cursor.fetchone()[0]
     for ex_id, is_correct in question_results:
         cursor.execute("""
             INSERT INTO diagnostic_question_results (attempt_id, exercise_id, is_correct)
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
         """, (attempt_id, ex_id, is_correct))
 
     cursor.execute("""
-        INSERT OR REPLACE INTO mastery_state
+        INSERT INTO mastery_state
             (student_id, concept_id, mastery_level, attempts_count, correct_count)
-        VALUES (?, ?, ?, 1, ?)
+        VALUES (%s, %s, %s, 1, %s)
+        ON CONFLICT (student_id, concept_id) DO UPDATE
+            SET mastery_level   = EXCLUDED.mastery_level,
+                attempts_count  = mastery_state.attempts_count + 1,
+                correct_count   = EXCLUDED.correct_count
     """, (student_id, concept_id, mastery_level, correct_count))
 
     conn.commit()
@@ -331,7 +336,7 @@ async def get_diagnostic_results(
         SELECT da.score, da.created_at, c.name
         FROM diagnostic_attempts da
         JOIN concepts c ON da.concept_id = c.id
-        WHERE da.student_id = ? AND da.concept_id = ?
+        WHERE da.student_id = %s AND da.concept_id = %s
         ORDER BY da.created_at DESC
         LIMIT 1
     """, (student_id, concept_id))
@@ -374,7 +379,7 @@ async def submit_sequence_diagnostic(
     results = []
 
     for concept_id, answers in concept_answers.items():
-        cursor.execute("SELECT name FROM concepts WHERE id = ?", (concept_id,))
+        cursor.execute("SELECT name FROM concepts WHERE id = %s", (concept_id,))
         concept = cursor.fetchone()
         if not concept:
             continue
@@ -387,8 +392,8 @@ async def submit_sequence_diagnostic(
         for answer in answers:
             cursor.execute("""
                 SELECT exercise_type, content_json FROM exercises
-                WHERE id                   = ?
-                  AND concept_id           = ?
+                WHERE id                   = %s
+                  AND concept_id           = %s
                   AND is_diagnostic        = 1
                   AND created_by_admin_id IS NOT NULL
             """, (answer.question_id, concept_id))
@@ -453,23 +458,28 @@ async def submit_sequence_diagnostic(
 
         cursor.execute("""
             INSERT INTO diagnostic_attempts (student_id, concept_id, score, answers)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
         """, (student_id, concept_id, score,
               json.dumps([{"question_id": a.question_id,
                            "selected_index": a.selected_index,
                            "text_answer": getattr(a, "text_answer", None)}
                           for a in answers])))
-        seq_attempt_id = cursor.lastrowid
+        seq_attempt_id = cursor.fetchone()[0]
         for ex_id, is_correct in question_results:
             cursor.execute("""
                 INSERT INTO diagnostic_question_results (attempt_id, exercise_id, is_correct)
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
             """, (seq_attempt_id, ex_id, is_correct))
 
         cursor.execute("""
-            INSERT OR REPLACE INTO mastery_state
+            INSERT INTO mastery_state
                 (student_id, concept_id, mastery_level, attempts_count, correct_count)
-            VALUES (?, ?, ?, 1, ?)
+            VALUES (%s, %s, %s, 1, %s)
+            ON CONFLICT (student_id, concept_id) DO UPDATE
+                SET mastery_level   = EXCLUDED.mastery_level,
+                    attempts_count  = mastery_state.attempts_count + 1,
+                    correct_count   = EXCLUDED.correct_count
         """, (student_id, concept_id, mastery_level, correct_count))
 
         results.append({
@@ -498,7 +508,7 @@ async def get_concept_diagnostic_history(
     cursor.execute("""
         SELECT score, created_at
         FROM diagnostic_attempts
-        WHERE student_id = ? AND concept_id = ?
+        WHERE student_id = %s AND concept_id = %s
         ORDER BY created_at ASC
     """, (student_id, concept_id))
     rows = cursor.fetchall()
@@ -522,7 +532,7 @@ async def get_sequence_diagnostic_history(
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT id, name FROM concepts WHERE sequence_id = ? ORDER BY id",
+        "SELECT id, name FROM concepts WHERE sequence_id = %s ORDER BY id",
         (sequence_id,)
     )
     concepts = cursor.fetchall()
@@ -535,7 +545,7 @@ async def get_sequence_diagnostic_history(
     for cid, cname in concepts:
         cursor.execute("""
             SELECT score, created_at FROM diagnostic_attempts
-            WHERE student_id = ? AND concept_id = ?
+            WHERE student_id = %s AND concept_id = %s
             ORDER BY created_at ASC
         """, (student_id, cid))
         concept_histories[cname] = [float(r[0]) for r in cursor.fetchall()]

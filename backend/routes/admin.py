@@ -40,7 +40,7 @@ async def create_student(
     cursor = conn.cursor()
     
     # Check if username/email already exists
-    cursor.execute("SELECT id FROM students WHERE username = ? OR email = ?", 
+    cursor.execute("SELECT id FROM students WHERE username = %s OR email = %s", 
                   (student_data.username, student_data.email))
     if cursor.fetchone():
         conn.close()
@@ -52,11 +52,11 @@ async def create_student(
     try:
         cursor.execute("""
             INSERT INTO students (username, email, password_hash, role, is_active, classe)
-            VALUES (?, ?, ?, ?, 1, ?)
+            VALUES (%s, %s, %s, %s, 1, %s)
+            RETURNING id
         """, (student_data.username, student_data.email, password_hash, student_data.role.value, student_data.classe))
-        
+        new_student_id = cursor.fetchone()[0]
         conn.commit()
-        new_student_id = cursor.lastrowid
         
         # Initialize mastery for this student
         cursor.execute("SELECT id FROM concepts")
@@ -65,7 +65,7 @@ async def create_student(
             cursor.execute("""
                 INSERT INTO mastery_state 
                 (student_id, concept_id, mastery_level, attempts_count, correct_count)
-                VALUES (?, ?, 0.0, 0, 0)
+                VALUES (%s, %s, 0.0, 0, 0)
             """, (new_student_id, concept[0]))
         conn.commit()
         
@@ -104,7 +104,7 @@ async def get_student_details(
     
     cursor.execute("""
         SELECT id, username, email, role, is_active, created_at, classe
-        FROM students WHERE id = ?
+        FROM students WHERE id = %s
     """, (student_id,))
 
     student = cursor.fetchone()
@@ -115,7 +115,7 @@ async def get_student_details(
     # Get exercise stats
     cursor.execute("""
         SELECT COUNT(*) as exercises_completed
-        FROM exercise_attempts WHERE student_id = ?
+        FROM exercise_attempts WHERE student_id = %s
     """, (student_id,))
     exercises_completed = cursor.fetchone()[0]
     
@@ -159,7 +159,7 @@ async def list_students(
         SELECT id, username, email, role, is_active, created_at, classe
         FROM students
         ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT %s OFFSET %s
     """, (limit, skip))
 
     students = cursor.fetchall()
@@ -205,19 +205,19 @@ async def update_student(
     params = []
     
     if update_data.email is not None:
-        updates.append("email = ?")
+        updates.append("email = %s")
         params.append(update_data.email)
     if update_data.username is not None:
-        updates.append("username = ?")
+        updates.append("username = %s")
         params.append(update_data.username)
     if update_data.is_active is not None:
-        updates.append("is_active = ?")
+        updates.append("is_active = %s")
         params.append(1 if update_data.is_active else 0)
     if update_data.role is not None:
-        updates.append("role = ?")
+        updates.append("role = %s")
         params.append(update_data.role.value)
     if update_data.classe is not None:
-        updates.append("classe = ?")
+        updates.append("classe = %s")
         params.append(update_data.classe)
 
     if not updates:
@@ -227,7 +227,7 @@ async def update_student(
     params.append(student_id)
     
     try:
-        query = f"UPDATE students SET {', '.join(updates)} WHERE id = ?"
+        query = f"UPDATE students SET {', '.join(updates)} WHERE id = %s"
         cursor.execute(query, params)
         conn.commit()
         
@@ -271,7 +271,7 @@ async def reset_password(
     
     try:
         cursor.execute(
-            "UPDATE students SET password_hash = ? WHERE id = ?",
+            "UPDATE students SET password_hash = %s WHERE id = %s",
             (password_hash, student_id)
         )
         conn.commit()
@@ -321,24 +321,24 @@ async def delete_student(
         cursor.execute("""
             DELETE FROM diagnostic_question_results
             WHERE attempt_id IN (
-                SELECT id FROM diagnostic_attempts WHERE student_id = ?
+                SELECT id FROM diagnostic_attempts WHERE student_id = %s
             )
         """, (student_id,))
 
         # 2. Delete activity data directly linked to the student
-        cursor.execute("DELETE FROM diagnostic_attempts WHERE student_id = ?", (student_id,))
-        cursor.execute("DELETE FROM exercise_attempts   WHERE student_id = ?", (student_id,))
-        cursor.execute("DELETE FROM mistakes_log        WHERE student_id = ?", (student_id,))
-        cursor.execute("DELETE FROM mastery_state       WHERE student_id = ?", (student_id,))
+        cursor.execute("DELETE FROM diagnostic_attempts WHERE student_id = %s", (student_id,))
+        cursor.execute("DELETE FROM exercise_attempts   WHERE student_id = %s", (student_id,))
+        cursor.execute("DELETE FROM mistakes_log        WHERE student_id = %s", (student_id,))
+        cursor.execute("DELETE FROM mastery_state       WHERE student_id = %s", (student_id,))
 
         # 3. Nullify FK references in tables that must be preserved
-        cursor.execute("UPDATE exercises          SET created_by_admin_id = NULL WHERE created_by_admin_id = ?", (student_id,))
-        cursor.execute("UPDATE exercise_templates SET created_by_admin_id = NULL WHERE created_by_admin_id = ?", (student_id,))
-        cursor.execute("UPDATE admin_settings     SET updated_by_admin_id = NULL WHERE updated_by_admin_id = ?", (student_id,))
-        cursor.execute("UPDATE admin_logs         SET target_user_id      = NULL WHERE target_user_id      = ?", (student_id,))
+        cursor.execute("UPDATE exercises          SET created_by_admin_id = NULL WHERE created_by_admin_id = %s", (student_id,))
+        cursor.execute("UPDATE exercise_templates SET created_by_admin_id = NULL WHERE created_by_admin_id = %s", (student_id,))
+        cursor.execute("UPDATE admin_settings     SET updated_by_admin_id = NULL WHERE updated_by_admin_id = %s", (student_id,))
+        cursor.execute("UPDATE admin_logs         SET target_user_id      = NULL WHERE target_user_id      = %s", (student_id,))
 
         # 4. Delete the student record itself
-        cursor.execute("DELETE FROM students WHERE id = ?", (student_id,))
+        cursor.execute("DELETE FROM students WHERE id = %s", (student_id,))
 
         conn.commit()
         return {"message": "Student permanently deleted"}
@@ -424,7 +424,8 @@ async def create_exercise(
             (title, description, concept_id, difficulty, exercise_type, 
              is_diagnostic, error_type_targeted, content_json, explanation, 
              created_by_admin_id, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
             exercise_data.title,
             exercise_data.description,
@@ -438,9 +439,8 @@ async def create_exercise(
             admin_id,
             1 if exercise_data.is_active else 0
         ))
-        
+        exercise_id = cursor.fetchone()[0]
         conn.commit()
-        exercise_id = cursor.lastrowid
         
         log_admin_action(
             admin_id=admin_id,
@@ -484,7 +484,7 @@ async def get_exercise(
         LEFT JOIN concepts c  ON c.id = e.concept_id
         LEFT JOIN sequences s ON s.id = c.sequence_id
         LEFT JOIN modules   m ON m.id = s.module_id
-        WHERE e.id = ?
+        WHERE e.id = %s
     """, (exercise_id,))
 
     exercise = cursor.fetchone()
@@ -545,16 +545,16 @@ async def list_exercises(
     params = []
 
     if concept_id:
-        base += " AND e.concept_id = ?"
+        base += " AND e.concept_id = %s"
         params.append(concept_id)
     if exercise_type:
-        base += " AND e.exercise_type = ?"
+        base += " AND e.exercise_type = %s"
         params.append(exercise_type)
     if is_diagnostic is not None:
-        base += " AND e.is_diagnostic = ?"
+        base += " AND e.is_diagnostic = %s"
         params.append(1 if is_diagnostic else 0)
 
-    base += " ORDER BY e.created_at DESC LIMIT ? OFFSET ?"
+    base += " ORDER BY e.created_at DESC LIMIT %s OFFSET %s"
     params.extend([limit, skip])
 
     cursor.execute(base, params)
@@ -563,13 +563,13 @@ async def list_exercises(
     count_query = "SELECT COUNT(*) FROM exercises WHERE 1=1"
     count_params = []
     if concept_id:
-        count_query += " AND concept_id = ?"
+        count_query += " AND concept_id = %s"
         count_params.append(concept_id)
     if exercise_type:
-        count_query += " AND exercise_type = ?"
+        count_query += " AND exercise_type = %s"
         count_params.append(exercise_type)
     if is_diagnostic is not None:
-        count_query += " AND is_diagnostic = ?"
+        count_query += " AND is_diagnostic = %s"
         count_params.append(1 if is_diagnostic else 0)
 
     cursor.execute(count_query, count_params)
@@ -606,7 +606,7 @@ async def update_exercise(
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT id FROM exercises WHERE id = ?", (exercise_id,))
+    cursor.execute("SELECT id FROM exercises WHERE id = %s", (exercise_id,))
     if not cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=404, detail="Exercise not found")
@@ -615,31 +615,31 @@ async def update_exercise(
     params = []
     
     if update_data.title is not None:
-        updates.append("title = ?")
+        updates.append("title = %s")
         params.append(update_data.title)
     if update_data.description is not None:
-        updates.append("description = ?")
+        updates.append("description = %s")
         params.append(update_data.description)
     if update_data.difficulty is not None:
-        updates.append("difficulty = ?")
+        updates.append("difficulty = %s")
         params.append(update_data.difficulty)
     if update_data.exercise_type is not None:
-        updates.append("exercise_type = ?")
+        updates.append("exercise_type = %s")
         params.append(update_data.exercise_type.value)
     if update_data.is_diagnostic is not None:
-        updates.append("is_diagnostic = ?")
+        updates.append("is_diagnostic = %s")
         params.append(1 if update_data.is_diagnostic else 0)
     if update_data.error_type_targeted is not None:
-        updates.append("error_type_targeted = ?")
+        updates.append("error_type_targeted = %s")
         params.append(update_data.error_type_targeted.value)
     if update_data.content_json is not None:
-        updates.append("content_json = ?")
+        updates.append("content_json = %s")
         params.append(json.dumps(update_data.content_json))
     if update_data.explanation is not None:
-        updates.append("explanation = ?")
+        updates.append("explanation = %s")
         params.append(update_data.explanation)
     if update_data.is_active is not None:
-        updates.append("is_active = ?")
+        updates.append("is_active = %s")
         params.append(1 if update_data.is_active else 0)
     
     if not updates:
@@ -649,7 +649,7 @@ async def update_exercise(
     params.append(exercise_id)
     
     try:
-        query = f"UPDATE exercises SET {', '.join(updates)} WHERE id = ?"
+        query = f"UPDATE exercises SET {', '.join(updates)} WHERE id = %s"
         cursor.execute(query, params)
         conn.commit()
         
@@ -677,7 +677,7 @@ async def activate_exercise(
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("UPDATE exercises SET is_active = 1 WHERE id = ?", (exercise_id,))
+    cursor.execute("UPDATE exercises SET is_active = 1 WHERE id = %s", (exercise_id,))
     conn.commit()
     conn.close()
     
@@ -699,7 +699,7 @@ async def deactivate_exercise(
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("UPDATE exercises SET is_active = 0 WHERE id = ?", (exercise_id,))
+    cursor.execute("UPDATE exercises SET is_active = 0 WHERE id = %s", (exercise_id,))
     conn.commit()
     conn.close()
 
@@ -722,7 +722,7 @@ async def delete_exercise(
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, title FROM exercises WHERE id = ?", (exercise_id,))
+    cursor.execute("SELECT id, title FROM exercises WHERE id = %s", (exercise_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
@@ -731,8 +731,8 @@ async def delete_exercise(
     title = row[1]
 
     try:
-        cursor.execute("DELETE FROM exercise_attempts WHERE exercise_id = ?", (exercise_id,))
-        cursor.execute("DELETE FROM exercises WHERE id = ?", (exercise_id,))
+        cursor.execute("DELETE FROM exercise_attempts WHERE exercise_id = %s", (exercise_id,))
+        cursor.execute("DELETE FROM exercises WHERE id = %s", (exercise_id,))
         conn.commit()
 
         log_admin_action(
@@ -771,7 +771,7 @@ async def get_admin_logs(
         FROM admin_logs l
         JOIN students s ON l.admin_id = s.id
         ORDER BY l.timestamp DESC
-        LIMIT ? OFFSET ?
+        LIMIT %s OFFSET %s
     """, (limit, skip))
     
     logs = cursor.fetchall()
@@ -1055,7 +1055,7 @@ async def get_diagnostic_sequence_stats(
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT title FROM sequences WHERE id = ?", (sequence_id,))
+    cursor.execute("SELECT title FROM sequences WHERE id = %s", (sequence_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
@@ -1066,7 +1066,7 @@ async def get_diagnostic_sequence_stats(
         SELECT DISTINCT c.id, c.name
         FROM concepts c
         JOIN exercises e ON e.concept_id = c.id
-        WHERE c.sequence_id = ? AND e.is_diagnostic = 1
+        WHERE c.sequence_id = %s AND e.is_diagnostic = 1
               AND e.created_by_admin_id IS NOT NULL AND e.is_active = 1
         ORDER BY c.id
     """, (sequence_id,))
@@ -1083,7 +1083,7 @@ async def get_diagnostic_sequence_stats(
                 SELECT da.id, da.student_id, da.score, da.created_at
                 FROM diagnostic_attempts da
                 JOIN students s ON da.student_id = s.id
-                WHERE da.concept_id = ? AND s.role = 'student' AND s.classe = ?
+                WHERE da.concept_id = %s AND s.role = 'student' AND s.classe = %s
                 ORDER BY da.student_id, da.created_at
             """, (concept_id, classe))
         else:
@@ -1091,7 +1091,7 @@ async def get_diagnostic_sequence_stats(
                 SELECT da.id, da.student_id, da.score, da.created_at
                 FROM diagnostic_attempts da
                 JOIN students s ON da.student_id = s.id
-                WHERE da.concept_id = ? AND s.role = 'student'
+                WHERE da.concept_id = %s AND s.role = 'student'
                 ORDER BY da.student_id, da.created_at
             """, (concept_id,))
         rows = cursor.fetchall()
@@ -1181,7 +1181,7 @@ async def get_diagnostic_sequence_stats(
         min_avg_attempt = min(attempt_stats, key=lambda x: x["mean"])["attempt_num"] if attempt_stats else None
         max_avg_attempt = max(attempt_stats, key=lambda x: x["mean"])["attempt_num"] if attempt_stats else None
 
-        hardest_classe_filter = "AND s.classe = ?" if classe else ""
+        hardest_classe_filter = "AND s.classe = %s" if classe else ""
         hardest_params = [concept_id, classe] if classe else [concept_id]
         cursor.execute(f"""
             SELECT dqr.exercise_id,
@@ -1197,7 +1197,7 @@ async def get_diagnostic_sequence_stats(
             JOIN diagnostic_attempts da ON dqr.attempt_id = da.id
             JOIN students s ON da.student_id = s.id
             JOIN exercises e ON dqr.exercise_id = e.id
-            WHERE da.concept_id = ? AND s.role = 'student' {hardest_classe_filter}
+            WHERE da.concept_id = %s AND s.role = 'student' {hardest_classe_filter}
             GROUP BY dqr.exercise_id
             ORDER BY (CAST(wrong_count AS REAL) / total_att) DESC
             LIMIT 8
@@ -1340,7 +1340,7 @@ async def get_diagnostic_group_stats(
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT name FROM concepts WHERE id = ?", (concept_id,))
+    cursor.execute("SELECT name FROM concepts WHERE id = %s", (concept_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
@@ -1351,7 +1351,7 @@ async def get_diagnostic_group_stats(
         SELECT da.id, da.student_id, da.score, da.created_at
         FROM diagnostic_attempts da
         JOIN students s ON da.student_id = s.id
-        WHERE da.concept_id = ? AND s.role = 'student'
+        WHERE da.concept_id = %s AND s.role = 'student'
         ORDER BY da.created_at
     """, (concept_id,))
     rows = cursor.fetchall()
@@ -1406,7 +1406,7 @@ async def get_diagnostic_group_stats(
         JOIN diagnostic_attempts da ON dqr.attempt_id = da.id
         JOIN students s ON da.student_id = s.id
         JOIN exercises e ON dqr.exercise_id = e.id
-        WHERE da.concept_id = ? AND s.role = 'student'
+        WHERE da.concept_id = %s AND s.role = 'student'
         GROUP BY dqr.exercise_id
         ORDER BY (CAST(wrong_count AS REAL) / total_att) DESC
         LIMIT 8
@@ -1481,7 +1481,7 @@ async def get_students_overview(
     # All students (optionally filtered by classe)
     if classe:
         cursor.execute(
-            "SELECT id, username, created_at, classe FROM students WHERE role='student' AND classe=? ORDER BY username",
+            "SELECT id, username, created_at, classe FROM students WHERE role='student' AND classe=%s ORDER BY username",
             (classe,)
         )
     else:
@@ -1494,7 +1494,7 @@ async def get_students_overview(
         for c in concepts:
             cursor.execute("""
                 SELECT score, created_at FROM diagnostic_attempts
-                WHERE student_id = ? AND concept_id = ?
+                WHERE student_id = %s AND concept_id = %s
                 ORDER BY created_at
             """, (sid, c["id"]))
             atts = cursor.fetchall()
@@ -1532,7 +1532,7 @@ async def get_student_analytics(
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, username, email FROM students WHERE id=? AND role='student'", (student_id,))
+    cursor.execute("SELECT id, username, email FROM students WHERE id=%s AND role='student'", (student_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
@@ -1546,7 +1546,7 @@ async def get_student_analytics(
         FROM diagnostic_attempts da
         JOIN concepts c ON da.concept_id = c.id
         LEFT JOIN mastery_state m ON m.concept_id = da.concept_id AND m.student_id = da.student_id
-        WHERE da.student_id = ?
+        WHERE da.student_id = %s
         ORDER BY da.concept_id, da.created_at
     """, (student_id,))
 
@@ -1592,7 +1592,7 @@ async def get_student_analytics(
         FROM diagnostic_question_results dqr
         JOIN diagnostic_attempts da ON dqr.attempt_id = da.id
         JOIN exercises e ON dqr.exercise_id = e.id
-        WHERE da.student_id = ?
+        WHERE da.student_id = %s
         GROUP BY dqr.exercise_id
         ORDER BY (CAST(correct_cnt AS REAL) / total) ASC
     """, (student_id,))

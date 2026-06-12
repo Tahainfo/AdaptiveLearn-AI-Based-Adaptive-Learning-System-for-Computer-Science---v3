@@ -6,7 +6,7 @@ from typing import Optional
 from backend.models.database_models import StudentCreate, StudentLogin, StudentResponse
 from backend.utils.auth import hash_password, verify_password, TokenStore
 from backend.database.db import get_db_connection
-import sqlite3
+import psycopg2
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -18,24 +18,25 @@ async def register(student: StudentCreate):
     cursor = conn.cursor()
     
     # Check if student exists
-    cursor.execute("SELECT id FROM students WHERE username = ? OR email = ?", 
+    cursor.execute("SELECT id FROM students WHERE username = %s OR email = %s",
                    (student.username, student.email))
     if cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=400, detail="Student already exists")
-    
+
     # Hash password and create student
     password_hash = hash_password(student.password)
-    
+
     try:
         cursor.execute("""
             INSERT INTO students (username, email, password_hash)
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
+            RETURNING id
         """, (student.username, student.email, password_hash))
+        student_id = cursor.fetchone()[0]
         conn.commit()
-        
-        student_id = cursor.lastrowid
-    except sqlite3.IntegrityError as e:
+    except psycopg2.errors.UniqueViolation as e:
+        conn.rollback()
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))
     finally:
@@ -55,7 +56,7 @@ async def login(credentials: StudentLogin):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT id, password_hash, role FROM students WHERE username = ?",
+    cursor.execute("SELECT id, password_hash, role FROM students WHERE username = %s",
                    (credentials.username,))
     result = cursor.fetchone()
     conn.close()

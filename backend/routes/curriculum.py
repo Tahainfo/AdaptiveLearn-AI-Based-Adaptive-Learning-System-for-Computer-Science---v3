@@ -41,7 +41,7 @@ async def get_all_modules(authorization: Optional[str] = Header(None)):
         cursor.execute("""
             SELECT id, title, order_index
             FROM sequences
-            WHERE module_id = ?
+            WHERE module_id = %s
             ORDER BY order_index
         """, (module[0],))
         
@@ -61,8 +61,8 @@ async def get_all_modules(authorization: Optional[str] = Header(None)):
                        COALESCE(m.attempts_count, 0) as attempts_count,
                        COALESCE(m.correct_count, 0) as correct_count
                 FROM concepts c
-                LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = ?
-                WHERE c.sequence_id = ?
+                LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = %s
+                WHERE c.sequence_id = %s
                 ORDER BY c.id
             """, (student_id, seq[0]))
             
@@ -100,7 +100,7 @@ async def get_module_details(
     cursor.execute("""
         SELECT id, title, description, order_index
         FROM modules
-        WHERE id = ?
+        WHERE id = %s
     """, (module_id,))
     
     module = cursor.fetchone()
@@ -120,7 +120,7 @@ async def get_module_details(
     cursor.execute("""
         SELECT id, title, order_index
         FROM sequences
-        WHERE module_id = ?
+        WHERE module_id = %s
         ORDER BY order_index
     """, (module_id,))
     
@@ -140,8 +140,8 @@ async def get_module_details(
                    COALESCE(m.attempts_count, 0) as attempts_count,
                    COALESCE(m.correct_count, 0) as correct_count
             FROM concepts c
-            LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = ?
-            WHERE c.sequence_id = ?
+            LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = %s
+            WHERE c.sequence_id = %s
             ORDER BY c.id
         """, (student_id, seq[0]))
         
@@ -177,7 +177,7 @@ async def get_sequence_details(
     cursor.execute("""
         SELECT id, module_id, title, order_index
         FROM sequences
-        WHERE id = ?
+        WHERE id = %s
     """, (sequence_id,))
     
     sequence = cursor.fetchone()
@@ -200,8 +200,8 @@ async def get_sequence_details(
                COALESCE(m.attempts_count, 0) as attempts_count,
                COALESCE(m.correct_count, 0) as correct_count
         FROM concepts c
-        LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = ?
-        WHERE c.sequence_id = ?
+        LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = %s
+        WHERE c.sequence_id = %s
         ORDER BY c.id
     """, (student_id, sequence_id))
     
@@ -230,7 +230,7 @@ async def get_modules_progress(authorization: Optional[str] = Header(None)):
     cursor = conn.cursor()
 
     # Fetch student name
-    cursor.execute("SELECT username FROM students WHERE id = ?", (student_id,))
+    cursor.execute("SELECT username FROM students WHERE id = %s", (student_id,))
     row = cursor.fetchone()
     student_name = row[0] if row else "Student"
 
@@ -243,7 +243,7 @@ async def get_modules_progress(authorization: Optional[str] = Header(None)):
 
     for mod_id, mod_title in modules_raw:
         cursor.execute(
-            "SELECT id, title FROM sequences WHERE module_id = ? ORDER BY order_index",
+            "SELECT id, title FROM sequences WHERE module_id = %s ORDER BY order_index",
             (mod_id,)
         )
         seqs = cursor.fetchall()
@@ -256,8 +256,8 @@ async def get_modules_progress(authorization: Optional[str] = Header(None)):
             cursor.execute("""
                 SELECT AVG(COALESCE(m.mastery_level, 0.0))
                 FROM concepts c
-                LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = ?
-                WHERE c.sequence_id = ?
+                LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = %s
+                WHERE c.sequence_id = %s
             """, (student_id, seq_id))
             avg_row = cursor.fetchone()
             avg_mastery = float(avg_row[0]) if avg_row and avg_row[0] is not None else 0.0
@@ -319,8 +319,8 @@ async def get_concepts_by_sequence(
                COALESCE(m.attempts_count, 0) as attempts_count,
                COALESCE(m.correct_count, 0) as correct_count
         FROM concepts c
-        LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = ?
-        WHERE c.sequence_id = ?
+        LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = %s
+        WHERE c.sequence_id = %s
         ORDER BY c.id
     """, (student_id, sequence_id))
     

@@ -20,7 +20,7 @@ async def get_dashboard(authorization: Optional[str] = Header(None)):
     
     # Student info
     cursor.execute("""
-        SELECT username, email, created_at FROM students WHERE id = ?
+        SELECT username, email, created_at FROM students WHERE id = %s
     """, (student_id,))
     
     student = cursor.fetchone()
@@ -33,7 +33,7 @@ async def get_dashboard(authorization: Optional[str] = Header(None)):
         SELECT c.id, c.name, c.domain, m.mastery_level, m.attempts_count, m.correct_count
         FROM mastery_state m
         JOIN concepts c ON m.concept_id = c.id
-        WHERE m.student_id = ?
+        WHERE m.student_id = %s
         ORDER BY c.domain, c.name
     """, (student_id,))
     
@@ -56,7 +56,7 @@ async def get_dashboard(authorization: Optional[str] = Header(None)):
         FROM exercise_attempts ea
         JOIN exercises e ON ea.exercise_id = e.id
         JOIN concepts c ON e.concept_id = c.id
-        WHERE ea.student_id = ?
+        WHERE ea.student_id = %s
         ORDER BY ea.created_at DESC
         LIMIT 5
     """, (student_id,))
@@ -103,7 +103,7 @@ async def get_progress(authorization: Optional[str] = Header(None)):
                COUNT(CASE WHEN m.mastery_level < 0.4 THEN 1 END) as struggling,
                AVG(m.mastery_level) as avg_mastery
         FROM concepts c
-        LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = ?
+        LEFT JOIN mastery_state m ON c.id = m.concept_id AND m.student_id = %s
         GROUP BY c.domain
         ORDER BY c.domain
     """, (student_id,))
@@ -166,7 +166,7 @@ async def get_proficiency_by_concept(authorization: Optional[str] = Header(None)
         SELECT c.name, c.domain, m.mastery_level, m.attempts_count
         FROM mastery_state m
         JOIN concepts c ON m.concept_id = c.id
-        WHERE m.student_id = ?
+        WHERE m.student_id = %s
         ORDER BY m.mastery_level DESC
     """, (student_id,))
     
@@ -206,7 +206,7 @@ async def get_learning_analytics(authorization: Optional[str] = Header(None)):
         SELECT DATE(created_at) as study_date, COUNT(*) as exercises_done,
                SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct_answers
         FROM exercise_attempts
-        WHERE student_id = ?
+        WHERE student_id = %s
         GROUP BY DATE(created_at)
         ORDER BY study_date DESC
         LIMIT 30
@@ -227,7 +227,7 @@ async def get_learning_analytics(authorization: Optional[str] = Header(None)):
     cursor.execute("""
         SELECT error_type, COUNT(*) as count
         FROM exercise_attempts
-        WHERE student_id = ? AND is_correct = 0
+        WHERE student_id = %s AND is_correct = 0
         GROUP BY error_type
         ORDER BY count DESC
     """, (student_id,))

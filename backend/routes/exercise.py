@@ -54,7 +54,7 @@ async def get_next_exercise(authorization: Optional[str] = Header(None)):
         
         # Get concept name
         cursor = conn.cursor()
-        cursor.execute("SELECT name FROM concepts WHERE id = ?", (concept_id,))
+        cursor.execute("SELECT name FROM concepts WHERE id = %s", (concept_id,))
         concept = cursor.fetchone()
         concept_name = concept[0] if concept else "Unknown"
         
@@ -94,7 +94,8 @@ async def get_next_exercise(authorization: Optional[str] = Header(None)):
         cursor.execute("""
             INSERT INTO exercises
             (concept_id, title, description, difficulty, exercise_prompt, solution, explanation)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
             concept_id,
             concept_name,
@@ -104,9 +105,8 @@ async def get_next_exercise(authorization: Optional[str] = Header(None)):
             exercise_data.get('solution', ''),
             exercise_data.get('explanation', '')
         ))
+        exercise_id = cursor.fetchone()[0]
         conn.commit()
-        
-        exercise_id = cursor.lastrowid
         
         return {
             "type": "exercise",
@@ -132,7 +132,7 @@ async def submit_exercise_answer(
         
         # Get exercise
         cursor.execute("""
-            SELECT solution, concept_id FROM exercises WHERE id = ?
+            SELECT solution, concept_id FROM exercises WHERE id = %s
         """, (answer_data.exercise_id,))
         
         exercise = cursor.fetchone()
@@ -156,7 +156,7 @@ async def submit_exercise_answer(
         cursor.execute("""
             INSERT INTO exercise_attempts
             (student_id, exercise_id, student_answer, is_correct, error_type)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
         """, (student_id, answer_data.exercise_id, answer_data.student_answer, is_correct, error_type))
         
         # Log mistake if incorrect
@@ -232,7 +232,7 @@ async def get_exercise_stats(
             SELECT COUNT(*) as total, 
                    SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct
             FROM exercise_attempts
-            WHERE student_id = ?
+            WHERE student_id = %s
         """, (student_id,))
         
         total, correct = cursor.fetchone()
@@ -246,7 +246,7 @@ async def get_exercise_stats(
             FROM exercise_attempts ea
             JOIN exercises e ON ea.exercise_id = e.id
             JOIN concepts c ON e.concept_id = c.id
-            WHERE ea.student_id = ?
+            WHERE ea.student_id = %s
             GROUP BY c.id, c.name
             ORDER BY attempts DESC
         """, (student_id,))
