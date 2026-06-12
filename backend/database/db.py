@@ -1,21 +1,30 @@
 """
 Database configuration and initialization
+Migrated from SQLite to PostgreSQL
 """
 import os
-import sqlite3
-from pathlib import Path
+import psycopg2
+import psycopg2.extras
 from contextlib import contextmanager
 
-# Database path
-DB_DIR = Path(__file__).parent.parent.parent / "data"
-DB_DIR.mkdir(exist_ok=True)
-DB_PATH = DB_DIR / "adaptive_learning.db"
+# Database URL from environment variable
+# Local fallback uses SQLite-style URL — on Render, set DATABASE_URL to your Neon connection string
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://localhost/adaptive_learning"
+)
+
+# Neon and some providers use postgres:// — SQLAlchemy and psycopg2 need postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 
 def get_db_connection():
-    """Get a database connection"""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    """Get a PostgreSQL database connection"""
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = False
     return conn
+
 
 @contextmanager
 def get_db():
@@ -30,83 +39,81 @@ def get_db():
     finally:
         conn.close()
 
+
 def init_db():
     """Initialize database with schema"""
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     # Students table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS students (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'student' CHECK(role IN ('student', 'admin')),
             is_active INTEGER NOT NULL DEFAULT 1,
+            classe TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
+
     # Modules table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS modules (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             title TEXT UNIQUE NOT NULL,
             description TEXT,
             order_index INTEGER
         )
     """)
-    
+
     # Sequences table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sequences (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            module_id INTEGER NOT NULL,
+            id SERIAL PRIMARY KEY,
+            module_id INTEGER NOT NULL REFERENCES modules(id),
             title TEXT NOT NULL,
             description TEXT,
             order_index INTEGER,
-            FOREIGN KEY (module_id) REFERENCES modules(id),
             UNIQUE(module_id, title)
         )
     """)
-    
-    # Concepts table (renamed to notions conceptually, but keeping the table name)
+
+    # Concepts table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS concepts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sequence_id INTEGER,
+            id SERIAL PRIMARY KEY,
+            sequence_id INTEGER REFERENCES sequences(id),
             name TEXT NOT NULL,
             domain TEXT NOT NULL,
             description TEXT,
             hours INTEGER DEFAULT 0,
-            FOREIGN KEY (sequence_id) REFERENCES sequences(id),
             UNIQUE(sequence_id, name)
         )
     """)
-    
-    # Mastery state - tracks student progress per concept
+
+    # Mastery state
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS mastery_state (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER NOT NULL,
-            concept_id INTEGER NOT NULL,
+            id SERIAL PRIMARY KEY,
+            student_id INTEGER NOT NULL REFERENCES students(id),
+            concept_id INTEGER NOT NULL REFERENCES concepts(id),
             mastery_level REAL DEFAULT 0.0,
             attempts_count INTEGER DEFAULT 0,
             correct_count INTEGER DEFAULT 0,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (student_id) REFERENCES students(id),
-            FOREIGN KEY (concept_id) REFERENCES concepts(id),
             UNIQUE(student_id, concept_id)
         )
     """)
-    
+
     # Exercises table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS exercises (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            concept_id INTEGER NOT NULL,
+            id SERIAL PRIMARY KEY,
+            concept_id INTEGER NOT NULL REFERENCES concepts(id),
             title TEXT NOT NULL,
             description TEXT,
             difficulty TEXT,
@@ -121,91 +128,83 @@ def init_db():
             content_json TEXT,
             created_by_admin_id INTEGER REFERENCES students(id),
             is_active INTEGER DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (concept_id) REFERENCES concepts(id)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
-    # Exercise attempts - track student answers
+
+    # Exercise attempts
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS exercise_attempts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER NOT NULL,
-            exercise_id INTEGER NOT NULL,
+            id SERIAL PRIMARY KEY,
+            student_id INTEGER NOT NULL REFERENCES students(id),
+            exercise_id INTEGER NOT NULL REFERENCES exercises(id),
             student_answer TEXT,
             is_correct INTEGER,
             error_type TEXT,
             time_spent_seconds INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (student_id) REFERENCES students(id),
-            FOREIGN KEY (exercise_id) REFERENCES exercises(id)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
-    # Mistakes log - detailed error tracking
+
+    # Mistakes log
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS mistakes_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER NOT NULL,
-            concept_id INTEGER NOT NULL,
+            id SERIAL PRIMARY KEY,
+            student_id INTEGER NOT NULL REFERENCES students(id),
+            concept_id INTEGER NOT NULL REFERENCES concepts(id),
             mistake_type TEXT,
             description TEXT,
             context TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (student_id) REFERENCES students(id),
-            FOREIGN KEY (concept_id) REFERENCES concepts(id)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
-    # Diagnostic tests
+
+    # Diagnostic attempts
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS diagnostic_attempts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER NOT NULL,
-            concept_id INTEGER NOT NULL,
+            id SERIAL PRIMARY KEY,
+            student_id INTEGER NOT NULL REFERENCES students(id),
+            concept_id INTEGER NOT NULL REFERENCES concepts(id),
             score REAL,
             answers TEXT,
             error_types_detected TEXT,
             classification TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (student_id) REFERENCES students(id),
-            FOREIGN KEY (concept_id) REFERENCES concepts(id)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
-    # Per-question diagnostic results (for analytics)
+    # Diagnostic question results
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS diagnostic_question_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             attempt_id INTEGER NOT NULL REFERENCES diagnostic_attempts(id),
             exercise_id INTEGER NOT NULL REFERENCES exercises(id),
             is_correct INTEGER NOT NULL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_dqr_attempt  ON diagnostic_question_results(attempt_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_dqr_exercise ON diagnostic_question_results(exercise_id)")
 
-    # Admin action audit log
+    # Admin logs
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS admin_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            admin_id INTEGER NOT NULL,
+            id SERIAL PRIMARY KEY,
+            admin_id INTEGER NOT NULL REFERENCES students(id),
             action_type TEXT NOT NULL,
             entity TEXT NOT NULL,
             entity_id INTEGER,
-            target_user_id INTEGER,
+            target_user_id INTEGER REFERENCES students(id),
             details TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (admin_id) REFERENCES students(id),
-            FOREIGN KEY (target_user_id) REFERENCES students(id)
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
-    # Reusable exercise templates
+    # Exercise templates
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS exercise_templates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             exercise_type TEXT NOT NULL,
             content_json TEXT NOT NULL,
@@ -215,10 +214,10 @@ def init_db():
         )
     """)
 
-    # Admin configuration settings
+    # Admin settings
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS admin_settings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             setting_key TEXT UNIQUE NOT NULL,
             setting_value TEXT,
             description TEXT,
@@ -228,37 +227,32 @@ def init_db():
     """)
 
     cursor.execute("""
-        INSERT OR IGNORE INTO admin_settings (setting_key, setting_value, description) VALUES
-            ('enable_ai_generation', 'true', 'Allow AI-generated exercises'),
-            ('prioritize_admin_exercises', 'true', 'Use admin exercises before AI-generated'),
-            ('max_diagnostic_questions', '10', 'Maximum questions per diagnostic test'),
-            ('mastery_threshold', '0.7', 'Mastery level threshold (0-1)'),
-            ('weak_concept_threshold', '0.4', 'Weakness threshold (0-1)')
+        INSERT INTO admin_settings (setting_key, setting_value, description) VALUES
+            ('enable_ai_generation',      'true',  'Allow AI-generated exercises'),
+            ('prioritize_admin_exercises','true',  'Use admin exercises before AI-generated'),
+            ('max_diagnostic_questions',  '10',    'Maximum questions per diagnostic test'),
+            ('mastery_threshold',         '0.7',   'Mastery level threshold (0-1)'),
+            ('weak_concept_threshold',    '0.4',   'Weakness threshold (0-1)')
+        ON CONFLICT (setting_key) DO NOTHING
     """)
 
-    # Migration: add classe column if it doesn't exist yet
-    try:
-        cursor.execute("ALTER TABLE students ADD COLUMN classe TEXT DEFAULT NULL")
-    except Exception:
-        pass  # Column already exists
-
-    # Indexes for performance
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_students_role ON students(role)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exercises_type ON exercises(exercise_type)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exercises_active ON exercises(is_active)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_admin_logs_admin ON admin_logs(admin_id)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_admin_logs_ts ON admin_logs(timestamp)")
+    # Indexes
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_students_role     ON students(role)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exercises_type    ON exercises(exercise_type)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exercises_active  ON exercises(is_active)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_admin_logs_admin  ON admin_logs(admin_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_admin_logs_ts     ON admin_logs(timestamp)")
 
     conn.commit()
     conn.close()
-    print(f"Database initialized at {DB_PATH}")
+    print("✅ PostgreSQL database initialized")
+
 
 def insert_default_modules_and_sequences():
     """Insert default modules, sequences and concepts"""
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    # Modules data
+
     modules_data = [
         {
             "title": "Généralités sur les systèmes informatiques",
@@ -389,46 +383,50 @@ def insert_default_modules_and_sequences():
             ]
         },
     ]
-    
-    # Insert modules and sequences
+
     for module_idx, module in enumerate(modules_data):
         try:
             cursor.execute(
-                "INSERT INTO modules (title, description, order_index) VALUES (?, ?, ?)",
+                "INSERT INTO modules (title, description, order_index) VALUES (%s, %s, %s) ON CONFLICT (title) DO NOTHING RETURNING id",
                 (module["title"], module["description"], module_idx + 1)
             )
-            module_id = cursor.lastrowid
-            
-            # Insert sequences
+            row = cursor.fetchone()
+            if not row:
+                cursor.execute("SELECT id FROM modules WHERE title = %s", (module["title"],))
+                row = cursor.fetchone()
+            module_id = row[0]
+
             for seq_idx, sequence in enumerate(module["sequences"]):
-                try:
+                cursor.execute(
+                    "INSERT INTO sequences (module_id, title, order_index) VALUES (%s, %s, %s) ON CONFLICT (module_id, title) DO NOTHING RETURNING id",
+                    (module_id, sequence["title"], seq_idx + 1)
+                )
+                row = cursor.fetchone()
+                if not row:
+                    cursor.execute("SELECT id FROM sequences WHERE module_id = %s AND title = %s", (module_id, sequence["title"]))
+                    row = cursor.fetchone()
+                sequence_id = row[0]
+
+                for concept_name, hours in sequence["concepts"]:
                     cursor.execute(
-                        "INSERT INTO sequences (module_id, title, order_index) VALUES (?, ?, ?)",
-                        (module_id, sequence["title"], seq_idx + 1)
+                        "INSERT INTO concepts (sequence_id, name, domain, hours) VALUES (%s, %s, %s, %s) ON CONFLICT (sequence_id, name) DO NOTHING",
+                        (sequence_id, concept_name, module["title"], hours)
                     )
-                    sequence_id = cursor.lastrowid
-                    
-                    # Insert concepts for each sequence
-                    for concept_name, hours in sequence["concepts"]:
-                        try:
-                            cursor.execute(
-                                "INSERT INTO concepts (sequence_id, name, domain, hours) VALUES (?, ?, ?, ?)",
-                                (sequence_id, concept_name, module["title"], hours)
-                            )
-                        except sqlite3.IntegrityError:
-                            pass
-                except sqlite3.IntegrityError:
-                    pass
-        except sqlite3.IntegrityError:
-            pass
-    
+        except Exception as e:
+            print(f"Warning during seed: {e}")
+            conn.rollback()
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
     conn.commit()
     conn.close()
     print("✅ Default modules and sequences inserted")
 
+
 def insert_default_concepts():
-    """Insert default concepts into database (kept for backward compatibility)"""
+    """Kept for backward compatibility"""
     insert_default_modules_and_sequences()
+
 
 if __name__ == "__main__":
     init_db()
