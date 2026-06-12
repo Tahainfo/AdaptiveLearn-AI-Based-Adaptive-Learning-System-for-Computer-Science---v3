@@ -23,10 +23,10 @@ async def require_admin(authorization: Optional[str] = Header(None)) -> int:
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT role FROM students WHERE id = ?", (student_id,))
+    cursor.execute("SELECT role FROM students WHERE id = %s", (student_id,))
     result = cursor.fetchone()
     conn.close()
-    
+
     if not result or result[0] != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -47,7 +47,7 @@ async def require_role(required_role: str):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT role FROM students WHERE id = ?", (student_id,))
+        cursor.execute("SELECT role FROM students WHERE id = %s", (student_id,))
         result = cursor.fetchone()
         conn.close()
         
@@ -93,7 +93,7 @@ def log_admin_action(
         cursor.execute("""
             INSERT INTO admin_logs 
             (admin_id, action_type, entity, entity_id, target_user_id, details)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
         """, (
             admin_id,
             action_type,
@@ -117,7 +117,7 @@ def verify_user_exists(user_id: int) -> bool:
     from backend.database.db import get_db_connection
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM students WHERE id = ?", (user_id,))
+    cursor.execute("SELECT id FROM students WHERE id = %s", (user_id,))
     result = cursor.fetchone()
     conn.close()
     return result is not None
@@ -127,7 +127,7 @@ def verify_concept_exists(concept_id: int) -> bool:
     from backend.database.db import get_db_connection
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM concepts WHERE id = ?", (concept_id,))
+    cursor.execute("SELECT id FROM concepts WHERE id = %s", (concept_id,))
     result = cursor.fetchone()
     conn.close()
     return result is not None
@@ -137,7 +137,7 @@ def verify_sequence_exists(sequence_id: int) -> bool:
     from backend.database.db import get_db_connection
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM sequences WHERE id = ?", (sequence_id,))
+    cursor.execute("SELECT id FROM sequences WHERE id = %s", (sequence_id,))
     result = cursor.fetchone()
     conn.close()
     return result is not None
@@ -147,7 +147,7 @@ def verify_module_exists(module_id: int) -> bool:
     from backend.database.db import get_db_connection
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM modules WHERE id = ?", (module_id,))
+    cursor.execute("SELECT id FROM modules WHERE id = %s", (module_id,))
     result = cursor.fetchone()
     conn.close()
     return result is not None
@@ -157,7 +157,7 @@ def get_admin_username(admin_id: int) -> str:
     from backend.database.db import get_db_connection
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT username FROM students WHERE id = ?", (admin_id,))
+    cursor.execute("SELECT username FROM students WHERE id = %s", (admin_id,))
     result = cursor.fetchone()
     conn.close()
     return result[0] if result else "Unknown"
@@ -175,7 +175,7 @@ def get_student_mastery_stats(student_id: int) -> dict:
             SUM(CASE WHEN mastery_level >= 0.7 THEN 1 ELSE 0 END) as strong_concepts,
             SUM(CASE WHEN mastery_level < 0.4 THEN 1 ELSE 0 END) as weak_concepts
         FROM mastery_state
-        WHERE student_id = ?
+        WHERE student_id = %s
     """, (student_id,))
     
     result = cursor.fetchone()
@@ -207,7 +207,7 @@ def get_exercise_stats(exercise_id: int) -> dict:
             COUNT(*) as total_attempts,
             SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct_attempts
         FROM exercise_attempts
-        WHERE exercise_id = ?
+        WHERE exercise_id = %s
     """, (exercise_id,))
     
     result = cursor.fetchone()
