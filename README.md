@@ -92,7 +92,7 @@ The platform is grounded in two pedagogical principles:
 
 **Authentication**
 
-<img src="docs/screenshots/authentification etudiant.jpg" alt="Login and registration interface" width="80%"/>
+<img src="docs/screenshots/login.jpg" alt="Login and registration interface" width="80%"/>
 
 <br/><br/>
 
