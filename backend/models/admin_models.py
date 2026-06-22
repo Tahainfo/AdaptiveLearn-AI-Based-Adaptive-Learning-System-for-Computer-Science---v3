@@ -115,7 +115,7 @@ class AdminStudentResponse(BaseModel):
     email: str
     role: str
     is_active: bool
-    created_at: str
+    created_at: datetime
     classe: Optional[str] = None
     total_exercises_completed: int = 0
     average_mastery: float = 0.0
@@ -162,7 +162,7 @@ class AdminExerciseResponse(BaseModel):
     content_json: Optional[Dict[str, Any]] = None
     is_active: bool
     created_by_admin_id: Optional[int]
-    created_at: str
+    created_at: datetime
     attempt_count: int = 0
     success_rate: float = 0.0
 
@@ -178,7 +178,7 @@ class AdminLogResponse(BaseModel):
     entity_id: Optional[int]
     target_user_id: Optional[int]
     details: Optional[Dict] = None
-    timestamp: str
+    timestamp: datetime
 
 class AdminLogCreate(BaseModel):
     action_type: AdminActionEnum
@@ -215,7 +215,7 @@ class AdminAnalyticsResponse(BaseModel):
     weakest_concepts: List[ConceptMasteryStats]
     most_common_errors: List[ErrorTypeStats]
     diagnostic_completion_rate: float
-    timestamp: str
+    timestamp: str  # reçoit datetime.now().isoformat() depuis admin.py
 
 # =============================================================================
 # DIAGNOSTIC MANAGEMENT MODELS
@@ -232,7 +232,7 @@ class AdminDiagnosticResponse(BaseModel):
     total_questions: int
     created_by_admin_id: Optional[int]
     is_auto_generated: bool
-    created_at: str
+    created_at: datetime
 
 # =============================================================================
 # EXERCISE TEMPLATE MODELS
@@ -250,7 +250,7 @@ class ExerciseTemplateResponse(BaseModel):
     content_json: Dict[str, Any]
     description: Optional[str]
     created_by_admin_id: int
-    created_at: str
+    created_at: datetime
 
 # =============================================================================
 # JWT & AUTH MODELS
@@ -279,4 +279,4 @@ class AdminDashboardResponse(BaseModel):
     recent_logs: List[AdminLogResponse]
     student_mastery_distribution: Dict[str, int]  # "excellent", "good", "weak"
     most_practiced_concepts: List[Dict]
-    timestamp: str
+    timestamp: str  # reçoit datetime.now().isoformat() depuis admin.py
