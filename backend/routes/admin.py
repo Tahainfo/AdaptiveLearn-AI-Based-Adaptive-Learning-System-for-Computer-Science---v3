@@ -1513,7 +1513,7 @@ async def get_students_overview(
             "id": sid,
             "username": username,
             "classe": student_classe,
-            "joined": (created_at or "")[:10],
+            "joined": created_at.strftime("%Y-%m-%d") if created_at else "",
             "scores": concept_scores,
             "overall_avg": round(stats_lib.mean(scored), 1) if scored else None,
             "concepts_attempted": len(scored)
@@ -1561,7 +1561,7 @@ async def get_student_analytics(
         concept_map[cid]["attempts"].append({
             "attempt_num": len(concept_map[cid]["attempts"]) + 1,
             "score": round(float(score), 1),
-            "date": (created_at or "")[:10]
+            "date": created_at.strftime("%Y-%m-%d") if created_at else ""
         })
 
     result_list = []
