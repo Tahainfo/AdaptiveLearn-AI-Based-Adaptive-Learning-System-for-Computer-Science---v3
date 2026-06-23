@@ -948,7 +948,7 @@ async def get_admin_dashboard(
             JOIN students s ON ms.student_id = s.id
             WHERE s.role = 'student'
             GROUP BY ms.student_id
-        )
+        ) AS student_avgs
     """)
     
     mastery_dist = cursor.fetchone()
@@ -998,7 +998,8 @@ async def get_concepts_with_diagnostics(admin_id: int = Depends(require_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT DISTINCT c.id, c.name, s.title AS seq_title, m.title AS mod_title
+        SELECT DISTINCT c.id, c.name, s.title AS seq_title, m.title AS mod_title,
+               m.order_index AS m_order, s.order_index AS s_order
         FROM concepts c
         JOIN exercises e ON e.concept_id = c.id
         LEFT JOIN sequences s ON c.sequence_id = s.id
@@ -1032,7 +1033,8 @@ async def get_sequences_with_diagnostics(admin_id: int = Depends(require_admin))
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT DISTINCT s.id, s.title, m.title AS mod_title
+        SELECT DISTINCT s.id, s.title, m.title AS mod_title,
+               m.order_index AS m_order, s.order_index AS s_order
         FROM sequences s
         JOIN concepts c ON c.sequence_id = s.id
         JOIN exercises e ON e.concept_id = c.id
@@ -1186,8 +1188,8 @@ async def get_diagnostic_sequence_stats(
         cursor.execute(f"""
             SELECT dqr.exercise_id,
                    COALESCE(
-                       json_extract(e.content_json, '$.question'),
-                       json_extract(e.content_json, '$.statement'),
+                       (e.content_json::json)->>'question',
+                       (e.content_json::json)->>'statement',
                        e.title
                    ) AS question_text,
                    e.exercise_type,
@@ -1198,8 +1200,8 @@ async def get_diagnostic_sequence_stats(
             JOIN students s ON da.student_id = s.id
             JOIN exercises e ON dqr.exercise_id = e.id
             WHERE da.concept_id = %s AND s.role = 'student' {hardest_classe_filter}
-            GROUP BY dqr.exercise_id
-            ORDER BY (CAST(wrong_count AS REAL) / total_att) DESC
+            GROUP BY dqr.exercise_id, e.content_json, e.exercise_type, e.title
+            ORDER BY (CAST(SUM(CASE WHEN dqr.is_correct = 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*)) DESC
             LIMIT 8
         """, hardest_params)
         hardest = []
@@ -1395,8 +1397,8 @@ async def get_diagnostic_group_stats(
     cursor.execute("""
         SELECT dqr.exercise_id,
                COALESCE(
-                   json_extract(e.content_json, '$.question'),
-                   json_extract(e.content_json, '$.statement'),
+                   (e.content_json::json)->>'question',
+                   (e.content_json::json)->>'statement',
                    e.title
                ) AS question_text,
                e.exercise_type,
@@ -1407,8 +1409,8 @@ async def get_diagnostic_group_stats(
         JOIN students s ON da.student_id = s.id
         JOIN exercises e ON dqr.exercise_id = e.id
         WHERE da.concept_id = %s AND s.role = 'student'
-        GROUP BY dqr.exercise_id
-        ORDER BY (CAST(wrong_count AS REAL) / total_att) DESC
+        GROUP BY dqr.exercise_id, e.content_json, e.exercise_type, e.title
+        ORDER BY (CAST(SUM(CASE WHEN dqr.is_correct = 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*)) DESC
         LIMIT 8
     """, (concept_id,))
     hardest = []
@@ -1582,8 +1584,8 @@ async def get_student_analytics(
     cursor.execute("""
         SELECT dqr.exercise_id,
                COALESCE(
-                   json_extract(e.content_json, '$.question'),
-                   json_extract(e.content_json, '$.statement'),
+                   (e.content_json::json)->>'question',
+                   (e.content_json::json)->>'statement',
                    e.title
                ) AS qtext,
                e.exercise_type,
@@ -1593,8 +1595,8 @@ async def get_student_analytics(
         JOIN diagnostic_attempts da ON dqr.attempt_id = da.id
         JOIN exercises e ON dqr.exercise_id = e.id
         WHERE da.student_id = %s
-        GROUP BY dqr.exercise_id
-        ORDER BY (CAST(correct_cnt AS REAL) / total) ASC
+        GROUP BY dqr.exercise_id, e.content_json, e.exercise_type, e.title
+        ORDER BY (CAST(SUM(dqr.is_correct) AS REAL) / COUNT(*)) ASC
     """, (student_id,))
     question_stats = []
     for r in cursor.fetchall():
